@@ -43,6 +43,23 @@ private func makeManifest() -> Manifest {
     #expect(brain.frame == 0)
 }
 
+@Test func reselectingTheCurrentStateLeavesTheFrameAlone() {
+    var brain = CatBrain(manifest: makeManifest())
+    brain.advanceFrame()
+    brain.advanceFrame()
+    #expect(brain.frame == 2)
+    brain.requestState("idle")   // already idle
+    #expect(brain.frame == 2)
+}
+
+@Test func decidingIntoTheCurrentStateLeavesTheFrameAlone() {
+    var brain = CatBrain(manifest: makeManifest())
+    brain.advanceFrame()
+    #expect(brain.frame == 1)
+    brain.decide(roll: 0.5)   // selects idle; the cat is already idle
+    #expect(brain.frame == 1)
+}
+
 @Test func requestingAStateClearsAutonomy() {
     var brain = CatBrain(manifest: makeManifest())
     #expect(brain.isAutonomous)
