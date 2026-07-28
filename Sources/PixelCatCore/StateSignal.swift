@@ -46,6 +46,11 @@ public enum StateSignal {
 ///
 /// Neither watch alone is sufficient; together they cover create, in-place
 /// write, replace-by-rename, and delete.
+///
+/// `start()` and `stop()` must be called from a single consistent context.
+/// `AppDelegate` gets this for free today because its watcher property is
+/// `@MainActor`-isolated, which the compiler enforces for that one consumer -
+/// this type itself does nothing to serialize the two against each other.
 public final class StateSignalWatcher {
     private let fileURL: URL
     private let directoryURL: URL
@@ -115,22 +120,28 @@ public final class StateSignalWatcher {
         }
     }
 
+    deinit {
+        stop()
+    }
+
     public func stop() {
-        // `pending` and `fileSource` are also mutated on `queue` (by
-        // scheduleRead() and armFileWatch(), invoked from the two sources'
-        // event handlers, which run on `queue`); route these mutations
-        // through the same queue rather than touching them from the
-        // caller's thread. `directorySource` is only ever touched by
-        // start()/stop(), both on the caller's thread, so it needs no such
-        // routing.
+        // `directorySource` must be cancelled first and from inside `queue`,
+        // not after it: its event handler is what re-arms `fileSource` and
+        // `pending` (via armFileWatch() / scheduleRead()). If it were
+        // cancelled outside queue.sync, the serial queue is briefly idle
+        // between the sync block returning and this cancel running, and a
+        // directory event delivered in that window would call armFileWatch()
+        // and resurrect a resumed file source with a pending read - exactly
+        // what this function is trying to tear down. Cancelling it first,
+        // on the same queue as its own handler, closes that window.
         queue.sync {
+            directorySource?.cancel()
+            directorySource = nil
             pending?.cancel()
             pending = nil
             fileSource?.cancel()
             fileSource = nil
         }
-        directorySource?.cancel()
-        directorySource = nil
     }
 
     /// Arms (or re-arms) a watch on the state file's own descriptor, so
