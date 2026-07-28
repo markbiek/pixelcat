@@ -1,0 +1,112 @@
+import AppKit
+import PixelCatCore
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var resources: LoadedResources!
+    private var brain: CatBrain!
+    private var window: CatWindow!
+    private var catView: CatView!
+
+    private var frameTimer: Timer?
+    private var decideTimer: Timer?
+    private var rng = SystemRandomNumberGenerator()
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        do {
+            resources = try Resources.load()
+        } catch {
+            fail("\(error)")
+        }
+
+        brain = CatBrain(manifest: resources.sheet.manifest)
+
+        let side = resources.sheet.windowSide
+        window = CatWindow(side: side)
+        catView = CatView(
+            image: resources.image,
+            sourceRect: currentSourceRect(),
+            side: side
+        )
+        window.contentView = catView
+        window.setFrameOrigin(CatWindow.defaultOrigin(side: side))
+        window.orderFrontRegardless()
+
+        scheduleFrameTimer()
+        scheduleDecideTimer()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        frameTimer?.invalidate()
+        decideTimer?.invalidate()
+    }
+
+    // MARK: - Timers
+
+    /// Rescheduled after every frame because fps varies by state.
+    ///
+    /// Uses the target/selector API rather than the closure-based one: the
+    /// closure overload requires a @Sendable block, and AppDelegate is a
+    /// non-Sendable, main-actor-isolated class. Target/selector has no
+    /// closure and sidesteps that entirely.
+    private func scheduleFrameTimer() {
+        frameTimer?.invalidate()
+        let interval = 1.0 / brain.currentFPS
+        frameTimer = Timer.scheduledTimer(
+            timeInterval: interval,
+            target: self,
+            selector: #selector(frameTimerFired),
+            userInfo: nil,
+            repeats: false
+        )
+    }
+
+    @objc
+    private func frameTimerFired() {
+        brain.advanceFrame()
+        redraw()
+        scheduleFrameTimer()
+    }
+
+    /// Rescheduled after every decision at a fresh random interval, so the cat
+    /// does not change state on a metronome.
+    private func scheduleDecideTimer() {
+        decideTimer?.invalidate()
+        let delay = brain.nextDecisionDelay(using: &rng)
+        decideTimer = Timer.scheduledTimer(
+            timeInterval: delay,
+            target: self,
+            selector: #selector(decideTimerFired),
+            userInfo: nil,
+            repeats: false
+        )
+    }
+
+    @objc
+    private func decideTimerFired() {
+        let before = brain.state
+        brain.decide(using: &rng)
+        if brain.state != before {
+            scheduleFrameTimer()
+            redraw()
+        }
+        scheduleDecideTimer()
+    }
+
+    // MARK: - Drawing
+
+    private func currentSourceRect() -> CGRect {
+        // The brain only ever holds names the manifest declares, so this
+        // cannot fail once resources have loaded.
+        try! resources.sheet.frameRect(state: brain.state, frame: brain.frame)
+    }
+
+    private func redraw() {
+        catView.update(image: resources.image, sourceRect: currentSourceRect())
+    }
+
+    private func fail(_ message: String) -> Never {
+        FileHandle.standardError.write(Data("pixelcat: \(message)\n".utf8))
+        exit(1)
+    }
+}
