@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var decideTimer: Timer?
     private var rng = SystemRandomNumberGenerator()
     private var statusItemController: StatusItemController!
+    private var signalWatcher: StateSignalWatcher?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -30,7 +31,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             side: side
         )
         window.contentView = catView
-        window.setFrameOrigin(CatWindow.defaultOrigin(side: side))
+        window.setFrameOrigin(
+            PositionStore.load(side: side) ?? CatWindow.defaultOrigin(side: side)
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowDidMove),
+            name: NSWindow.didMoveNotification,
+            object: window
+        )
         window.orderFrontRegardless()
 
         statusItemController = StatusItemController(
@@ -43,9 +52,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             },
             onResetPosition: { [weak self] in
                 guard let self else { return }
+                // Order matters: setFrameOrigin fires windowDidMove
+                // synchronously, which would re-save the default origin and
+                // undo a clear() called beforehand. Clear last so it wins.
                 self.window.setFrameOrigin(
                     CatWindow.defaultOrigin(side: self.resources.sheet.windowSide)
                 )
+                PositionStore.clear()
             }
         )
         statusItemController.refresh(
@@ -55,11 +68,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         scheduleFrameTimer()
         scheduleDecideTimer()
+
+        let watcher = StateSignalWatcher(
+            validStates: Set(resources.sheet.manifest.orderedStateNames)
+        ) { [weak self] request in
+            self?.apply(request)
+        }
+        do {
+            try watcher.start()
+            signalWatcher = watcher
+        } catch {
+            // A cat that cannot be scripted is still a cat. Report and carry on.
+            FileHandle.standardError.write(Data("pixelcat: \(error)\n".utf8))
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         frameTimer?.invalidate()
         decideTimer?.invalidate()
+        signalWatcher?.stop()
     }
 
     // MARK: - Timers
@@ -119,6 +146,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: - Requests
+
+    @objc private func windowDidMove() {
+        PositionStore.save(window.frame.origin)
+    }
 
     /// The one place state changes enter the app, whatever their source.
     func apply(_ request: StateRequest) {
