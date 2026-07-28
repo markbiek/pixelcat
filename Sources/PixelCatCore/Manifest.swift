@@ -23,6 +23,20 @@ public struct Manifest: Codable, Equatable, Sendable {
     public let decideIntervalSeconds: [Double]
     public let states: [String: StateDefinition]
 
+    public init(
+        cellSize: Int,
+        scale: Int,
+        defaultState: String,
+        decideIntervalSeconds: [Double],
+        states: [String: StateDefinition]
+    ) {
+        self.cellSize = cellSize
+        self.scale = scale
+        self.defaultState = defaultState
+        self.decideIntervalSeconds = decideIntervalSeconds
+        self.states = states
+    }
+
     public var decideInterval: ClosedRange<Double> {
         decideIntervalSeconds[0]...decideIntervalSeconds[1]
     }
