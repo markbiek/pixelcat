@@ -13,25 +13,29 @@ let pixelScale = cellSize / artSize
 let columns = 6
 let rows = 3
 
-// . transparent   # outline   o white fur   b black patch
-// e eye           n nose      m mouth       w whisker      z sleep mark
+// . transparent   # outline   o white fur   b black patch   p inner ear
+// e eye           n nose      m mouth       w whisker       z sleep mark
+//
+// Whiskers sit on rows 9/10, 12, and 14/15 with blank rows between. Three
+// solid bars on consecutive rows fuse into one grey rectangle; the gaps and
+// the one-pixel stagger are what make them read as separate whiskers.
 let baseCat = [
     "........................",
     "....##............##....",
     "....#b#..........#b#....",
-    "....#bb#........#bb#....",
-    "....#bbb#......#bbb#....",
-    "....#bbb########bbb#....",
+    "....#bp#........#pb#....",
+    "....#bpp#......#ppb#....",
+    "....#bpp########ppb#....",
     "....#bboooooooooobb#....",
     "....#oooooooooooooo#....",
     "....#ooeeooooooeeoo#....",
-    "....#ooeeooooooeeoo#....",
-    "....#oooooooooooooo#....",
-    ".www#oooooonnoooooo#www.",
-    "wwww#oooomoooomoooo#wwww",
-    ".www#ooooommmmooooo#www.",
-    "....#oooooooooooooo#....",
-    "....#oooooooooooooo#....",
+    ".w..#ooeeooooooeeoo#..w.",
+    "..ww#oooooooooooooo#ww..",
+    "....#oooooonnoooooo#....",
+    ".www#oooomoooomoooo#www.",
+    "....#ooooommmmooooo#....",
+    "..ww#oooooooooooooo#ww..",
+    ".w..#oooooooooooooo#..w.",
     "....#ooooooooooobbb#....",
     "....#oooooooooobbbb#....",
     ".....#ooooooooobbb#.....",
@@ -49,6 +53,7 @@ func color(for character: Character) -> (UInt8, UInt8, UInt8, UInt8)? {
     case "b": return (38, 38, 44, 255)       // black patch
     case "e": return (26, 26, 30, 255)       // eye
     case "n": return (232, 140, 150, 255)    // pink nose
+    case "p": return (226, 158, 166, 255)    // softer pink inner ear
     case "m": return (26, 26, 30, 255)       // mouth
     case "w": return (205, 205, 213, 255)    // pale grey whisker, legible on
                                              // both light and dark desktops
@@ -145,14 +150,15 @@ let sleepFrames: [Grid] = [
     addSleepMark(sleepBase, atHeight: 1),
 ]
 
-// Row 2: dance. Side to side with a bob. Shifts are 2px because at 24px a
-// single pixel barely reads as movement.
+// Row 2: dance. Side to side with a bob. The sway is 1px, not 2: the whisker
+// tips sit one pixel from the cell edge, and a 2px shift clips them off,
+// which reads as whiskers flickering rather than a cat swaying.
 let danceFrames: [Grid] = [
-    shift(base, dx: -2, dy: 0),
-    shift(base, dx: -2, dy: 1),
+    shift(base, dx: -1, dy: 0),
+    shift(base, dx: -1, dy: 1),
     base,
-    shift(base, dx: 2, dy: 1),
-    shift(base, dx: 2, dy: 0),
+    shift(base, dx: 1, dy: 1),
+    shift(base, dx: 1, dy: 0),
     base,
 ]
 
