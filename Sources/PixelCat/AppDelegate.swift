@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var frameTimer: Timer?
     private var decideTimer: Timer?
     private var rng = SystemRandomNumberGenerator()
+    private var statusItemController: StatusItemController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -31,6 +32,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.contentView = catView
         window.setFrameOrigin(CatWindow.defaultOrigin(side: side))
         window.orderFrontRegardless()
+
+        statusItemController = StatusItemController(
+            stateNames: resources.sheet.manifest.orderedStateNames,
+            onSelectState: { [weak self] name in
+                self?.apply(.state(name))
+            },
+            onResumeAutonomy: { [weak self] in
+                self?.apply(.auto)
+            },
+            onResetPosition: { [weak self] in
+                guard let self else { return }
+                self.window.setFrameOrigin(
+                    CatWindow.defaultOrigin(side: self.resources.sheet.windowSide)
+                )
+            }
+        )
+        statusItemController.refresh(
+            currentState: brain.state,
+            isAutonomous: brain.isAutonomous
+        )
 
         scheduleFrameTimer()
         scheduleDecideTimer()
@@ -89,8 +110,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if brain.state != before {
             scheduleFrameTimer()
             redraw()
+            statusItemController.refresh(
+                currentState: brain.state,
+                isAutonomous: brain.isAutonomous
+            )
         }
         scheduleDecideTimer()
+    }
+
+    // MARK: - Requests
+
+    /// The one place state changes enter the app, whatever their source.
+    func apply(_ request: StateRequest) {
+        switch request {
+        case .state(let name):
+            guard brain.requestState(name) else { return }
+            decideTimer?.invalidate()
+            scheduleFrameTimer()
+        case .auto:
+            brain.resumeAutonomy()
+            scheduleDecideTimer()
+        }
+        redraw()
+        statusItemController.refresh(
+            currentState: brain.state,
+            isAutonomous: brain.isAutonomous
+        )
     }
 
     // MARK: - Drawing
