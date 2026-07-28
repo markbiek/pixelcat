@@ -45,7 +45,6 @@ public final class StateSignalWatcher {
     private let queue = DispatchQueue(label: "com.markbiek.pixelcat.signal")
 
     private var source: DispatchSourceFileSystemObject?
-    private var descriptor: CInt = -1
     private var pending: DispatchWorkItem?
 
     public init(
@@ -65,7 +64,7 @@ public final class StateSignalWatcher {
             withIntermediateDirectories: true
         )
 
-        descriptor = open(directoryURL.path, O_EVTONLY)
+        let descriptor = open(directoryURL.path, O_EVTONLY)
         guard descriptor >= 0 else {
             throw StateSignalError.cannotWatch(
                 path: directoryURL.path,
@@ -81,10 +80,13 @@ public final class StateSignalWatcher {
         source.setEventHandler { [weak self] in
             self?.scheduleRead()
         }
-        source.setCancelHandler { [weak self] in
-            guard let self, self.descriptor >= 0 else { return }
-            close(self.descriptor)
-            self.descriptor = -1
+        // Capture `descriptor` by value rather than reading a stored property:
+        // `cancel()` is asynchronous, so if `start()` runs again before this
+        // handler fires, a property read here could close the new fd instead
+        // of the one this source owns. Closing the captured value always
+        // closes exactly the fd this source was created with.
+        source.setCancelHandler {
+            close(descriptor)
         }
         source.resume()
         self.source = source
