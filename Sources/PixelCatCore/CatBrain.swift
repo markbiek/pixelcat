@@ -69,7 +69,10 @@ public struct CatBrain {
             setState(bucket.name)
             return
         }
-        // Only reachable through floating point drift in the final bucket.
+        // Unreachable in practice: `running` accumulates the same addends in
+        // the same order `total` reduces over, so the last bucket's
+        // `running / total` is exactly 1.0 and `clamped` never reaches it.
+        // Kept as a defensive fallback rather than force-unwrapping the loop.
         setState(buckets[buckets.count - 1].name)
     }
 

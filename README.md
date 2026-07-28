@@ -29,7 +29,7 @@ The menu bar icon offers:
 - A list of states to pin the cat to
 - **Let the Cat Decide** — resume autonomous mood changes
 - **Reset Position** — bring the cat back to the lower right
-- **Quit**
+- **Quit Pixel Cat**
 
 Drag the cat anywhere. It remembers where you left it.
 
@@ -46,6 +46,9 @@ git hook. Unrecognized names are ignored.
 
 Pinning a state stops the cat choosing for itself until you write `auto` or use
 the menu.
+
+The signal file is not read at launch — only watched. A signal left over from
+a previous session has no effect until something writes to the file again.
 
 ## Changing the art
 

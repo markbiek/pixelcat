@@ -32,7 +32,7 @@ private let validJSON = """
         of: #""defaultState": "idle""#,
         with: #""defaultState": "nope""#
     )
-    #expect(throws: ManifestError.self) {
+    #expect(throws: ManifestError.unknownDefaultState("nope")) {
         try Manifest.decode(from: Data(json.utf8))
     }
 }
@@ -42,7 +42,7 @@ private let validJSON = """
         of: #""frames": 4"#,
         with: #""frames": 0"#
     )
-    #expect(throws: ManifestError.self) {
+    #expect(throws: ManifestError.invalidState(name: "idle", reason: "frames must be at least 1")) {
         try Manifest.decode(from: Data(json.utf8))
     }
 }
@@ -52,12 +52,15 @@ private let validJSON = """
         of: "[8, 20]",
         with: "[20, 8]"
     )
-    #expect(throws: ManifestError.self) {
+    #expect(throws: ManifestError.invalidInterval("expected 0 < min <= max, got 20.0 and 8.0")) {
         try Manifest.decode(from: Data(json.utf8))
     }
 }
 
 @Test func rejectsAnEmptyStateTable() {
+    // Leaves `defaultState` as "idle" untouched: `validate()` checks
+    // emptyStates before unknownDefaultState, so this isolates the
+    // empty-table condition rather than also proving the defaultState guard.
     let json = validJSON.replacingOccurrences(
         of: #""idle":  { "row": 0, "frames": 4, "fps": 4,  "weight": 70 },"#,
         with: ""
@@ -67,11 +70,23 @@ private let validJSON = """
     ).replacingOccurrences(
         of: #""dance": { "row": 2, "frames": 6, "fps": 10, "weight": 10 }"#,
         with: ""
-    ).replacingOccurrences(
-        of: #""defaultState": "idle""#,
-        with: #""defaultState": """#
     )
-    #expect(throws: ManifestError.self) {
+    #expect(throws: ManifestError.emptyStates) {
         try Manifest.decode(from: Data(json.utf8))
     }
+}
+
+@Test func missingARequiredKeyFailsToDecode() {
+    let json = validJSON.replacingOccurrences(
+        of: #""cellSize": 32,"#,
+        with: ""
+    )
+    #expect(throws: DecodingError.self) {
+        try Manifest.decode(from: Data(json.utf8))
+    }
+}
+
+@Test func orderedStateNamesIsSorted() throws {
+    let manifest = try Manifest.decode(from: Data(validJSON.utf8))
+    #expect(manifest.orderedStateNames == ["dance", "idle", "sleep"])
 }
