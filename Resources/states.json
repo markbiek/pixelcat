@@ -1,5 +1,5 @@
 {
-  "cellSize": 32,
+  "cellSize": 24,
   "scale": 3,
   "defaultState": "idle",
   "decideIntervalSeconds": [8, 20],

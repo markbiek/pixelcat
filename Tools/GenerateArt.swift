@@ -1,51 +1,78 @@
 // Generates the placeholder sprite sheet.
 // Run: swift Tools/GenerateArt.swift Resources/cat.png
 //
-// The sheet is 6 columns by 3 rows of 32px cells. Art is authored as a 16x16
-// character grid and scaled 2x, which keeps the source readable.
+// The sheet is 6 columns by 3 rows of 24px cells. Art is authored as a 24x24
+// character grid drawn 1:1, so what you read below is exactly what ships.
+// On-screen size is cellSize * scale from states.json: 24 * 3 = 72 points.
 
 import AppKit
 
-let cellSize = 32
-let artSize = 16
+let cellSize = 24
+let artSize = 24
 let pixelScale = cellSize / artSize
 let columns = 6
 let rows = 3
 
-// . transparent   # outline   o body   e eye   z sleep mark
+// . transparent   # outline   o white fur   b black patch
+// e eye           n nose      m mouth       w whisker      z sleep mark
 let baseCat = [
-    "................",
-    "..##........##..",
-    "..#o#......#o#..",
-    "..#oo#....#oo#..",
-    "..#ooo####ooo#..",
-    ".#oooooooooooo#.",
-    ".#ooeeooooeeoo#.",
-    ".#ooeeooooeeoo#.",
-    ".#oooooooooooo#.",
-    ".#oooo####oooo#.",
-    ".#ooo#oooo#ooo#.",
-    "..#oooooooooo#..",
-    "..#oooooooooo#.#",
-    "...#oooooooo#.#.",
-    "...##########...",
-    "................",
+    "........................",
+    "....##............##....",
+    "....#b#..........#b#....",
+    "....#bb#........#bb#....",
+    "....#bbb#......#bbb#....",
+    "....#bbb########bbb#....",
+    "....#bboooooooooobb#....",
+    "....#oooooooooooooo#....",
+    "....#ooeeooooooeeoo#....",
+    "....#ooeeooooooeeoo#....",
+    "....#oooooooooooooo#....",
+    ".www#oooooonnoooooo#www.",
+    "wwww#oooomoooomoooo#wwww",
+    ".www#ooooommmmooooo#www.",
+    "....#oooooooooooooo#....",
+    "....#oooooooooooooo#....",
+    "....#ooooooooooobbb#....",
+    "....#oooooooooobbbb#....",
+    ".....#ooooooooobbb#.....",
+    "......############......",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
 ]
 
 func color(for character: Character) -> (UInt8, UInt8, UInt8, UInt8)? {
     switch character {
-    case "#": return (74, 44, 26, 255)      // dark brown outline
-    case "o": return (232, 152, 61, 255)    // orange body
-    case "e": return (46, 122, 74, 255)     // green eye
-    case "z": return (250, 250, 250, 255)   // sleep mark
-    default:  return nil                    // transparent
+    case "#": return (26, 26, 30, 255)       // near-black outline
+    case "o": return (245, 245, 245, 255)    // white fur
+    case "b": return (38, 38, 44, 255)       // black patch
+    case "e": return (26, 26, 30, 255)       // eye
+    case "n": return (232, 140, 150, 255)    // pink nose
+    case "m": return (26, 26, 30, 255)       // mouth
+    case "w": return (205, 205, 213, 255)    // pale grey whisker, legible on
+                                             // both light and dark desktops
+    case "z": return (245, 245, 245, 255)    // sleep mark
+    default:  return nil                     // transparent
     }
 }
 
 typealias Grid = [[Character]]
 
-func makeGrid(_ rows: [String]) -> Grid {
-    rows.map(Array.init)
+func makeGrid(_ lines: [String]) -> Grid {
+    // Hand-counted ASCII art is exactly where this file goes wrong, so the
+    // dimensions are checked rather than trusted.
+    precondition(
+        lines.count == artSize,
+        "art must have \(artSize) rows, found \(lines.count)"
+    )
+    for (index, line) in lines.enumerated() {
+        precondition(
+            line.count == artSize,
+            "art row \(index) must be \(artSize) columns, found \(line.count)"
+        )
+    }
+    return lines.map(Array.init)
 }
 
 func shift(_ grid: Grid, dx: Int, dy: Int) -> Grid {
@@ -66,8 +93,7 @@ func shift(_ grid: Grid, dx: Int, dy: Int) -> Grid {
     return output
 }
 
-/// Replaces the eye pixels. Passing "o" closes the eyes into the body;
-/// passing "#" draws a closed-eye line.
+/// Replaces every eye pixel with `replacement`.
 func setEyes(_ grid: Grid, to replacement: Character) -> Grid {
     var output = grid
     for y in 0..<artSize {
@@ -78,29 +104,33 @@ func setEyes(_ grid: Grid, to replacement: Character) -> Grid {
     return output
 }
 
+/// Blanks the eyes into the fur, then draws a contented closed-eye line.
 func closedEyes(_ grid: Grid) -> Grid {
-    // Blank both eye rows, then draw a line across the lower one.
     var output = setEyes(grid, to: "o")
-    for x in [4, 5, 10, 11] {
-        output[7][x] = "#"
+    for x in [7, 8, 15, 16] {
+        output[9][x] = "#"
     }
     return output
 }
 
+/// Draws a small "z" in the clear space to the cat's right. Four rows rather
+/// than three: at three the diagonal collapses and it reads as an "I".
 func addSleepMark(_ grid: Grid, atHeight y: Int) -> Grid {
     var output = grid
-    guard y >= 0, y + 2 < artSize else { return output }
-    for x in 12...14 {
+    guard y >= 0, y + 3 < artSize else { return output }
+    for x in 20...23 {
         output[y][x] = "z"
-        output[y + 2][x] = "z"
+        output[y + 3][x] = "z"
     }
-    output[y + 1][13] = "z"
+    output[y + 1][22] = "z"
+    output[y + 2][21] = "z"
     return output
 }
 
 let base = makeGrid(baseCat)
 
-// Row 0: idle. A slow bob, with a blink on frame 2.
+// Row 0: idle. A slow bob, blinking on the third frame. Frames 0 and 3 are
+// both the rest pose so the four-frame cycle closes cleanly.
 let idleFrames: [Grid] = [
     base,
     shift(base, dx: 0, dy: 1),
@@ -111,17 +141,18 @@ let idleFrames: [Grid] = [
 // Row 1: sleep. Eyes shut, with a rising sleep mark.
 let sleepBase = closedEyes(shift(base, dx: 0, dy: 1))
 let sleepFrames: [Grid] = [
-    addSleepMark(sleepBase, atHeight: 3),
+    addSleepMark(sleepBase, atHeight: 4),
     addSleepMark(sleepBase, atHeight: 1),
 ]
 
-// Row 2: dance. Side to side with a bob.
+// Row 2: dance. Side to side with a bob. Shifts are 2px because at 24px a
+// single pixel barely reads as movement.
 let danceFrames: [Grid] = [
-    shift(base, dx: -1, dy: 0),
-    shift(base, dx: -1, dy: 1),
+    shift(base, dx: -2, dy: 0),
+    shift(base, dx: -2, dy: 1),
     base,
-    shift(base, dx: 1, dy: 1),
-    shift(base, dx: 1, dy: 0),
+    shift(base, dx: 2, dy: 1),
+    shift(base, dx: 2, dy: 0),
     base,
 ]
 
