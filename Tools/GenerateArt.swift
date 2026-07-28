@@ -55,8 +55,9 @@ func color(for character: Character) -> (UInt8, UInt8, UInt8, UInt8)? {
     case "n": return (232, 140, 150, 255)    // pink nose
     case "p": return (226, 158, 166, 255)    // softer pink inner ear
     case "m": return (26, 26, 30, 255)       // mouth
-    case "w": return (205, 205, 213, 255)    // pale grey whisker, legible on
-                                             // both light and dark desktops
+    case "w": return (140, 140, 150, 255)    // mid-grey whisker: dark enough
+                                             // to read on a white window,
+                                             // light enough on a dark one
     case "z": return (245, 245, 245, 255)    // sleep mark
     default:  return nil                     // transparent
     }
