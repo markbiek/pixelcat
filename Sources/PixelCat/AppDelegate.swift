@@ -100,13 +100,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func scheduleFrameTimer() {
         frameTimer?.invalidate()
         let interval = 1.0 / brain.currentFPS
-        frameTimer = Timer.scheduledTimer(
+        let timer = Timer(
             timeInterval: interval,
             target: self,
             selector: #selector(frameTimerFired),
             userInfo: nil,
             repeats: false
         )
+        // .common rather than scheduledTimer's default-only mode: window
+        // dragging and NSMenu tracking both run the run loop in
+        // NSEventTrackingRunLoopMode, and a default-mode timer does not fire
+        // there, so the cat would freeze mid-drag and while the menu is open.
+        RunLoop.main.add(timer, forMode: .common)
+        frameTimer = timer
     }
 
     @objc
@@ -121,13 +127,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func scheduleDecideTimer() {
         decideTimer?.invalidate()
         let delay = brain.nextDecisionDelay(using: &rng)
-        decideTimer = Timer.scheduledTimer(
+        let timer = Timer(
             timeInterval: delay,
             target: self,
             selector: #selector(decideTimerFired),
             userInfo: nil,
             repeats: false
         )
+        // Same .common reasoning as scheduleFrameTimer(): without it, a long
+        // drag or menu-open silently postpones the next mood change.
+        RunLoop.main.add(timer, forMode: .common)
+        decideTimer = timer
     }
 
     @objc
