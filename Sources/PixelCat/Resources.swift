@@ -21,14 +21,33 @@ enum ResourceError: Error, CustomStringConvertible {
 }
 
 enum Resources {
-    /// Shared sprite geometry, read from animals.json.
-    static func loadGeometry() throws -> SpriteGeometry {
+    /// Reads animals.json and enumerates Resources/animals for available animals.
+    static func loadCatalog() throws -> AnimalCatalog {
         guard let url = Bundle.main.url(forResource: "animals", withExtension: "json") else {
             throw ResourceError.missing("animals.json")
         }
-        let geometry = try JSONDecoder().decode(SpriteGeometry.self, from: Data(contentsOf: url))
-        try geometry.validate()
-        return geometry
+        let document = try JSONDecoder().decode(CatalogDocument.self, from: Data(contentsOf: url))
+
+        let manifestURLs = Bundle.main.urls(
+            forResourcesWithExtension: "json",
+            subdirectory: "animals"
+        ) ?? []
+        let discovered = manifestURLs.map { $0.deletingPathExtension().lastPathComponent }
+
+        return try AnimalCatalog(document: document, discovered: discovered)
+    }
+
+    /// Loads every discovered animal. Bundled-resource failures are fatal at
+    /// launch by design, so validating all animals here means a broken sheet
+    /// for a non-default animal surfaces immediately rather than on the click
+    /// that first selects it — and makes switching infallible at runtime.
+    static func loadAll() throws -> (catalog: AnimalCatalog, animals: [String: LoadedResources]) {
+        let catalog = try loadCatalog()
+        var animals: [String: LoadedResources] = [:]
+        for name in catalog.animalNames {
+            animals[name] = try loadAnimal(name, geometry: catalog.geometry)
+        }
+        return (catalog, animals)
     }
 
     /// One animal's manifest and sprite sheet, from Resources/animals/<name>.{json,png}.

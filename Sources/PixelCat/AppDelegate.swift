@@ -4,6 +4,9 @@ import PixelCatCore
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var resources: LoadedResources!
+    private var catalog: AnimalCatalog!
+    private var animals: [String: LoadedResources] = [:]
+    private var currentAnimal: String!
     private var brain: CatBrain!
     private var window: CatWindow!
     private var catView: CatView!
@@ -16,8 +19,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
-            let geometry = try Resources.loadGeometry()
-            resources = try Resources.loadAnimal("cat", geometry: geometry)
+            let loaded = try Resources.loadAll()
+            catalog = loaded.catalog
+            animals = loaded.animals
+            currentAnimal = catalog.defaultAnimal
+            resources = animals[currentAnimal]!
         } catch {
             fail("\(error)")
         }
