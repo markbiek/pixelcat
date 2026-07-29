@@ -22,7 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let loaded = try Resources.loadAll()
             catalog = loaded.catalog
             animals = loaded.animals
-            currentAnimal = catalog.defaultAnimal
+            currentAnimal = AnimalStore.load(validAnimals: catalog.animalNames)
+                ?? catalog.defaultAnimal
             resources = animals[currentAnimal]!
         } catch {
             fail("\(error)")
@@ -76,6 +77,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         scheduleFrameTimer()
         scheduleDecideTimer()
 
+        restartSignalWatcher()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        frameTimer?.invalidate()
+        decideTimer?.invalidate()
+        signalWatcher?.stop()
+    }
+
+    /// The watcher is constructed with a fixed set of valid state names, so it
+    /// must be rebuilt when the animal's vocabulary changes.
+    private func restartSignalWatcher() {
+        signalWatcher?.stop()
+        signalWatcher = nil
+
         let watcher = StateSignalWatcher(
             validStates: Set(resources.sheet.manifest.orderedStateNames)
         ) { [weak self] request in
@@ -88,12 +104,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // A cat that cannot be scripted is still a cat. Report and carry on.
             FileHandle.standardError.write(Data("pixelcat: \(error)\n".utf8))
         }
-    }
-
-    func applicationWillTerminate(_ notification: Notification) {
-        frameTimer?.invalidate()
-        decideTimer?.invalidate()
-        signalWatcher?.stop()
     }
 
     // MARK: - Timers
@@ -184,6 +194,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             currentState: brain.state,
             isAutonomous: brain.isAutonomous
         )
+    }
+
+    /// Changes which animal is on screen.
+    ///
+    /// Every animal was loaded and validated at launch, so this cannot fail.
+    /// A pinned state deliberately does not survive the switch: state
+    /// vocabularies differ between animals, and "your pin sometimes survives"
+    /// is worse to use than "switching always starts fresh".
+    func switchTo(animal name: String) {
+        guard name != currentAnimal, let loaded = animals[name] else { return }
+
+        // Shared geometry makes this true by construction. The check exists so
+        // that reintroducing per-animal geometry fails loudly here rather than
+        // silently clipping the sprite against a stale window size.
+        precondition(
+            loaded.sheet.windowSide == resources.sheet.windowSide,
+            "animal '\(name)' has a different window size; geometry must be shared"
+        )
+
+        resources = loaded
+        currentAnimal = name
+        brain = CatBrain(manifest: loaded.sheet.manifest)
+        AnimalStore.save(name)
+
+        restartSignalWatcher()
+        scheduleFrameTimer()
+        scheduleDecideTimer()
+        redraw()
     }
 
     // MARK: - Drawing
