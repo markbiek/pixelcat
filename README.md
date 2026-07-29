@@ -26,7 +26,10 @@ from the internet, not to what you compile locally.
 
 The menu bar icon offers:
 
-- A list of states to pin the cat to
+- **Animal** — a submenu picking which animal is on screen. The choice is
+  remembered across launches.
+- A list of states to pin the current animal to. Each animal has its own
+  states, so this list changes when you switch animals.
 - **Let the Cat Decide** — resume autonomous mood changes
 - **Reset Position** — bring the cat back to the lower right
 - **Quit Pixel Cat**
@@ -35,29 +38,45 @@ Drag the cat anywhere. It remembers where you left it.
 
 ## Scripting the cat
 
-Write a state name to `~/.config/pixelcat/state` and the cat obeys:
+Two files under `~/.config/pixelcat` drive the app. Write a state name to
+`state`, or an animal name to `animal`:
 
-    echo dance > ~/.config/pixelcat/state
-    echo sleep > ~/.config/pixelcat/state
-    echo auto  > ~/.config/pixelcat/state    # resume autonomous behavior
+    echo dance > ~/.config/pixelcat/state     # pick a state
+    echo auto  > ~/.config/pixelcat/state     # resume autonomous behavior
+    echo bat   > ~/.config/pixelcat/animal    # pick an animal
 
 Anything that can write a file can drive the cat — a shell script, a cron job, a
 git hook. Unrecognized names are ignored.
 
-Pinning a state stops the cat choosing for itself until you write `auto` or use
-the menu.
+Each animal has its own states, so a name valid for one animal may be ignored by
+another: `wag` moves the dog and means nothing to the bat.
 
-The signal file is not read at launch — only watched. A signal left over from
-a previous session has no effect until something writes to the file again.
+Pinning a state stops the cat choosing for itself until you write `auto` or use
+the menu. Switching animals also starts fresh, so a pinned state does not
+survive the switch.
+
+Neither file is read at launch — only watched. A signal left over from a
+previous session has no effect until something writes to the file again.
 
 ## Changing the art
 
-The cat is a sprite sheet, `Resources/cat.png`, described by
-`Resources/states.json`:
+`Resources/animals.json` holds the settings every animal shares:
 
     {
       "cellSize": 24,
       "scale": 3,
+      "defaultAnimal": "cat"
+    }
+
+- `cellSize` is the pixel size of one square cell in a sheet
+- `scale` multiplies that for the on-screen window
+- `defaultAnimal` is shown on first launch, before you have picked one
+
+Each animal is a pair of files in `Resources/animals`: a sprite sheet
+`<name>.png` and a manifest `<name>.json`. The bundled animals are `cat`, `dog`,
+and `bat`. Here is `Resources/animals/cat.json`:
+
+    {
       "defaultState": "idle",
       "decideIntervalSeconds": [8, 20],
       "states": {
@@ -67,16 +86,22 @@ The cat is a sprite sheet, `Resources/cat.png`, described by
       }
     }
 
-- `cellSize` is the pixel size of one square cell in the sheet
-- `scale` multiplies that for the on-screen window
 - `row` is counted from the **top** of the image
-- `weight` is the relative chance of the cat picking that state
+- `frames` is how many cells that row uses, starting at the left
+- `fps` is that state's playback rate
+- `weight` is the relative chance of the animal picking that state
 - `decideIntervalSeconds` is the `[min, max]` gap between mood changes
 
-Adding a state means adding a row to the PNG and an entry to the JSON. No Swift
-changes are needed, and the new state appears in the menu automatically.
+Adding a state means adding a row to that animal's PNG and an entry to its JSON.
+Adding a whole animal means dropping a new `<name>.png` and `<name>.json` pair
+into `Resources/animals`. Either way no Swift changes are needed — animals are
+discovered by enumerating the bundle, and both the animal submenu and the state
+list are built from what is found.
 
-The bundled art is a placeholder: a black-and-white cat, 24px cells shown at
+All animals share the one `cellSize` and `scale` from `animals.json`, so a new
+animal must be drawn on the same 24px grid as the existing ones.
+
+The bundled art is a placeholder: black-and-white animals, 24px cells shown at
 72 points on screen. To regenerate it after editing `Tools/GenerateArt.swift`:
 
     make art

@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var rng = SystemRandomNumberGenerator()
     private var statusItemController: StatusItemController!
     private var signalWatcher: StateSignalWatcher?
+    private var animalWatcher: FileTokenWatcher?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -83,12 +84,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         scheduleDecideTimer()
 
         restartSignalWatcher()
+        startAnimalWatcher()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         frameTimer?.invalidate()
         decideTimer?.invalidate()
         signalWatcher?.stop()
+        animalWatcher?.stop()
+    }
+
+    /// Started once and never rebuilt, unlike the state watcher: the set of
+    /// animals is fixed at launch, so this watcher's vocabulary never goes
+    /// stale the way a per-animal state vocabulary does.
+    private func startAnimalWatcher() {
+        let animalFile = StateSignal.defaultFileURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("animal", isDirectory: false)
+        let watcher = FileTokenWatcher(
+            fileURL: animalFile,
+            validTokens: Set(catalog.animalNames)
+        ) { [weak self] name in
+            self?.switchTo(animal: name)
+        }
+        do {
+            try watcher.start()
+            animalWatcher = watcher
+        } catch {
+            FileHandle.standardError.write(Data("pixelcat: \(error)\n".utf8))
+        }
     }
 
     /// The watcher is constructed with a fixed set of valid state names, so it
