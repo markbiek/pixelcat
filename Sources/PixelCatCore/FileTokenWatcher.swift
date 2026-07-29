@@ -23,7 +23,7 @@ public final class FileTokenWatcher {
     private let directoryURL: URL
     private let validTokens: Set<String>
     private let onToken: @MainActor (String) -> Void
-    private let queue = DispatchQueue(label: "com.markbiek.pixelcat.signal")
+    private let queue: DispatchQueue
 
     private var directorySource: DispatchSourceFileSystemObject?
     private var fileSource: DispatchSourceFileSystemObject?
@@ -49,6 +49,9 @@ public final class FileTokenWatcher {
         self.directoryURL = fileURL.deletingLastPathComponent()
         self.validTokens = validTokens
         self.onToken = onToken
+        // Named after the watched file so two watchers (state, animal) show
+        // up as distinct queues in crash logs and Instruments traces.
+        self.queue = DispatchQueue(label: "com.markbiek.pixelcat.signal.\(fileURL.lastPathComponent)")
     }
 
     /// Interprets the contents of a token file. Returns nil for anything empty
