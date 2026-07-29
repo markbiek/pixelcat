@@ -27,7 +27,7 @@ test:
 	swift test
 
 art:
-	swift Tools/GenerateArt.swift Resources/animals/cat.png
+	swift Tools/GenerateArt.swift
 
 clean:
 	rm -rf .build $(BUNDLE)

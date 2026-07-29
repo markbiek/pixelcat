@@ -1,0 +1,9 @@
+{
+  "defaultState": "fly",
+  "decideIntervalSeconds": [6, 16],
+  "states": {
+    "fly":   { "row": 0, "frames": 4, "fps": 8, "weight": 55 },
+    "hang":  { "row": 1, "frames": 4, "fps": 2, "weight": 30 },
+    "sleep": { "row": 2, "frames": 2, "fps": 1, "weight": 15 }
+  }
+}
