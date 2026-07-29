@@ -46,7 +46,8 @@ Two files under `~/.config/pixelcat` drive the app. Write a state name to
     echo bat   > ~/.config/pixelcat/animal    # pick an animal
 
 Anything that can write a file can drive the cat — a shell script, a cron job, a
-git hook. Unrecognized names are ignored.
+git hook. Unrecognized names are ignored. Writing `animal` this way also updates
+the remembered choice for next launch, exactly as picking it from the menu does.
 
 Each animal has its own states, so a name valid for one animal may be ignored by
 another: `wag` moves the dog and means nothing to the bat.
