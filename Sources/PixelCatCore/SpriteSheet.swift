@@ -64,9 +64,9 @@ public enum SpriteSheetError: Error, Equatable, CustomStringConvertible {
     public var description: String {
         switch self {
         case .unknownState(let name):
-            return "no state named '\(name)' in states.json"
+            return "no state named '\(name)'"
         case .sheetTooSmall(let state, let needed, let actual):
-            return "cat.png is too small for state '\(state)': needs \(needed), has \(actual)"
+            return "sprite sheet is too small for state '\(state)': needs \(needed), has \(actual)"
         }
     }
 }

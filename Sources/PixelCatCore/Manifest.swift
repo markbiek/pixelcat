@@ -90,13 +90,13 @@ public enum ManifestError: Error, Equatable, CustomStringConvertible {
     public var description: String {
         switch self {
         case .emptyStates:
-            return "states.json declares no states"
+            return "manifest declares no states"
         case .unknownDefaultState(let name):
-            return "states.json defaultState '\(name)' is not one of the declared states"
+            return "manifest defaultState '\(name)' is not one of the declared states"
         case .invalidInterval(let detail):
-            return "states.json decideIntervalSeconds is invalid: \(detail)"
+            return "manifest decideIntervalSeconds is invalid: \(detail)"
         case .invalidState(let name, let reason):
-            return "states.json state '\(name)' is invalid: \(reason)"
+            return "manifest state '\(name)' is invalid: \(reason)"
         }
     }
 }

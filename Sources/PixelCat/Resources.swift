@@ -9,6 +9,7 @@ struct LoadedResources {
 enum ResourceError: Error, CustomStringConvertible {
     case missing(String)
     case undecodable(String)
+    case invalid(String)
 
     var description: String {
         switch self {
@@ -16,6 +17,8 @@ enum ResourceError: Error, CustomStringConvertible {
             return "\(name) is missing from the app bundle"
         case .undecodable(let name):
             return "\(name) could not be decoded"
+        case .invalid(let detail):
+            return detail
         }
     }
 }
@@ -63,7 +66,12 @@ enum Resources {
             throw ResourceError.missing("animals/\(name).png")
         }
 
-        let manifest = try Manifest.decode(from: Data(contentsOf: manifestURL))
+        let manifest: Manifest
+        do {
+            manifest = try Manifest.decode(from: Data(contentsOf: manifestURL))
+        } catch {
+            throw ResourceError.invalid("animals/\(name).json: \(error)")
+        }
 
         guard let loaded = NSImage(contentsOf: imageURL),
               let cgImage = loaded.cgImage(forProposedRect: nil, context: nil, hints: nil)
@@ -76,7 +84,12 @@ enum Resources {
         let pixelSize = CGSize(width: cgImage.width, height: cgImage.height)
         let image = NSImage(cgImage: cgImage, size: pixelSize)
 
-        let sheet = try SpriteSheet(geometry: geometry, manifest: manifest, sheetSize: pixelSize)
+        let sheet: SpriteSheet
+        do {
+            sheet = try SpriteSheet(geometry: geometry, manifest: manifest, sheetSize: pixelSize)
+        } catch {
+            throw ResourceError.invalid("animals/\(name).png: \(error)")
+        }
         return LoadedResources(sheet: sheet, image: image)
     }
 }
