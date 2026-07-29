@@ -84,6 +84,48 @@ private let valid: Set<String> = ["cat", "dog", "bat"]
         #expect(rename(staging.path, watched.path) == 0)
         await waitUntil { log.tokens == ["dog", "bat", "cat"] }
     }
+
+    /// Regression test for the stop/restart path.
+    ///
+    /// Both v1 file-descriptor bugs in this type lived here, and they were
+    /// fixed by reasoning about `start()`/`stop()` rather than by a test that
+    /// exercises a restart. This pins two things at once: a watcher that is
+    /// stopped and started again still delivers an in-place write (proving
+    /// `start()` re-arms the file watch itself rather than only reacting to
+    /// the next directory event), and it delivers that write exactly once
+    /// (proving `stop()` fully tears down the old sources, so `start()` does
+    /// not layer a second file source on top of one already there).
+    @Test @MainActor func stopThenStartStillDeliversAndDoesNotDoubleDeliver() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("pixelcat-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let watched = directory.appendingPathComponent("animal", isDirectory: false)
+
+        let log = TokenLog()
+        let watcher = FileTokenWatcher(fileURL: watched, validTokens: valid) { token in
+            log.tokens.append(token)
+        }
+        try watcher.start()
+        defer { watcher.stop() }
+
+        try "dog\n".write(to: watched, atomically: false, encoding: .utf8)
+        await waitUntil { log.tokens == ["dog"] }
+
+        watcher.stop()
+        try watcher.start()
+
+        // In-place write, same as the sibling test above: only a watcher
+        // that re-armed its file source on this restart can see it.
+        try "bat\n".write(to: watched, atomically: false, encoding: .utf8)
+        await waitUntil { log.tokens == ["dog", "bat"] }
+
+        // Give a hypothetical double-armed watcher a chance to deliver the
+        // same write twice before declaring the count final.
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(log.tokens == ["dog", "bat"], "a restarted watcher must not double-arm and double-deliver")
+    }
 }
 
 /// Collects tokens on the main actor, matching the watcher's `@MainActor`
