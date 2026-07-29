@@ -9,12 +9,14 @@ import Foundation
 public enum OvernightLearning {
     public static let activationHour = 4
 
-    /// The most recent occurrence of the activation hour at or before `now`.
+    /// The most recent occurrence of the activation hour (wall-clock 4 AM) at or before `now`.
+    /// DST-aware: on spring-forward and fall-back days, returns the literal wall-clock 4 AM,
+    /// not an elapsed-hour arithmetic result.
     public static func threshold(before now: Date, calendar: Calendar = .current) -> Date {
-        let today = calendar.startOfDay(for: now)
-        let todays = calendar.date(byAdding: .hour, value: activationHour, to: today)!
+        let todays = calendar.date(bySettingHour: activationHour, minute: 0, second: 0, of: now)!
         if todays <= now { return todays }
-        return calendar.date(byAdding: .day, value: -1, to: todays)!
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: now)!
+        return calendar.date(bySettingHour: activationHour, minute: 0, second: 0, of: yesterday)!
     }
 
     public static func shouldActivate(

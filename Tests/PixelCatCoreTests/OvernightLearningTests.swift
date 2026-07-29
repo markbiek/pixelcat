@@ -63,4 +63,26 @@ import Foundation
             now: date(29, 12), lastActivation: date(20, 4, 30), calendar: calendar
         ))
     }
+
+    @Test func thresholdIsWallClock4AMOnSpringForwardDay() {
+        // 2026-03-08: 2 AM jumps to 3 AM. Elapsed-hour math would say 5 AM.
+        let springForward9AM = calendar.date(from: DateComponents(
+            year: 2026, month: 3, day: 8, hour: 9
+        ))!
+        let expected = calendar.date(from: DateComponents(
+            year: 2026, month: 3, day: 8, hour: 4
+        ))!
+        #expect(OvernightLearning.threshold(before: springForward9AM, calendar: calendar) == expected)
+    }
+
+    @Test func thresholdIsWallClock4AMOnFallBackDay() {
+        // 2026-11-01: 2 AM repeats. Elapsed-hour math would say 3 AM.
+        let fallBack9AM = calendar.date(from: DateComponents(
+            year: 2026, month: 11, day: 1, hour: 9
+        ))!
+        let expected = calendar.date(from: DateComponents(
+            year: 2026, month: 11, day: 1, hour: 4
+        ))!
+        #expect(OvernightLearning.threshold(before: fallBack9AM, calendar: calendar) == expected)
+    }
 }
