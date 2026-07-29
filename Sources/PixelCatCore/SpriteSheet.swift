@@ -7,16 +7,17 @@ import Foundation
 /// editor. CoreGraphics and NSImage address them bottom-up. The conversion
 /// happens here and nowhere else.
 public struct SpriteSheet: Sendable {
+    public let geometry: SpriteGeometry
     public let manifest: Manifest
     public let sheetSize: CGSize
 
     /// On-screen side length of the cat window, in points.
     public var windowSide: CGFloat {
-        CGFloat(manifest.cellSize * manifest.scale)
+        CGFloat(geometry.cellSize * geometry.scale)
     }
 
-    public init(manifest: Manifest, sheetSize: CGSize) throws {
-        let cell = CGFloat(manifest.cellSize)
+    public init(geometry: SpriteGeometry, manifest: Manifest, sheetSize: CGSize) throws {
+        let cell = CGFloat(geometry.cellSize)
         for name in manifest.orderedStateNames {
             let state = manifest.states[name]!
             let neededWidth = CGFloat(state.frames) * cell
@@ -36,6 +37,7 @@ public struct SpriteSheet: Sendable {
                 )
             }
         }
+        self.geometry = geometry
         self.manifest = manifest
         self.sheetSize = sheetSize
     }
@@ -44,7 +46,7 @@ public struct SpriteSheet: Sendable {
         guard let state = manifest.states[name] else {
             throw SpriteSheetError.unknownState(name)
         }
-        let cell = CGFloat(manifest.cellSize)
+        let cell = CGFloat(geometry.cellSize)
         let column = ((frame % state.frames) + state.frames) % state.frames
         return CGRect(
             x: CGFloat(column) * cell,

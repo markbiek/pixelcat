@@ -16,7 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
-            resources = try Resources.load()
+            let geometry = try Resources.loadGeometry()
+            resources = try Resources.loadAnimal("cat", geometry: geometry)
         } catch {
             fail("\(error)")
         }

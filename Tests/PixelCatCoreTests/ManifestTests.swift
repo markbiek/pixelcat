@@ -4,8 +4,6 @@ import Foundation
 
 private let validJSON = """
 {
-  "cellSize": 32,
-  "scale": 3,
   "defaultState": "idle",
   "decideIntervalSeconds": [8, 20],
   "states": {
@@ -18,8 +16,6 @@ private let validJSON = """
 
 @Test func decodesAValidManifest() throws {
     let manifest = try Manifest.decode(from: Data(validJSON.utf8))
-    #expect(manifest.cellSize == 32)
-    #expect(manifest.scale == 3)
     #expect(manifest.defaultState == "idle")
     #expect(manifest.states.count == 3)
     #expect(manifest.states["dance"]?.frames == 6)
@@ -76,9 +72,9 @@ private let validJSON = """
     }
 }
 
-@Test func missingARequiredKeyFailsToDecode() {
+@Test func missingDefaultStateFailsToDecode() {
     let json = validJSON.replacingOccurrences(
-        of: #""cellSize": 32,"#,
+        of: #""defaultState": "idle","#,
         with: ""
     )
     #expect(throws: DecodingError.self) {

@@ -1,5 +1,5 @@
 // Generates the placeholder sprite sheet.
-// Run: swift Tools/GenerateArt.swift Resources/cat.png
+// Run: swift Tools/GenerateArt.swift Resources/animals/cat.png
 //
 // The sheet is 6 columns by 3 rows of 24px cells. Art is authored as a 24x24
 // character grid drawn 1:1, so what you read below is exactly what ships.
@@ -213,7 +213,7 @@ else {
 
 let outputPath = CommandLine.arguments.count > 1
     ? CommandLine.arguments[1]
-    : "Resources/cat.png"
+    : "Resources/animals/cat.png"
 
 let representation = NSBitmapImageRep(cgImage: cgImage)
 guard let png = representation.representation(using: .png, properties: [:]) else {

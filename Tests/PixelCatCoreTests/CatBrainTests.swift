@@ -4,8 +4,6 @@ import Foundation
 
 private func makeManifest() -> Manifest {
     Manifest(
-        cellSize: 32,
-        scale: 3,
         defaultState: "idle",
         decideIntervalSeconds: [8, 20],
         states: [

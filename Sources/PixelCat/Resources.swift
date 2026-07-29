@@ -21,12 +21,27 @@ enum ResourceError: Error, CustomStringConvertible {
 }
 
 enum Resources {
-    static func load() throws -> LoadedResources {
-        guard let manifestURL = Bundle.main.url(forResource: "states", withExtension: "json") else {
-            throw ResourceError.missing("states.json")
+    /// Shared sprite geometry, read from animals.json.
+    static func loadGeometry() throws -> SpriteGeometry {
+        guard let url = Bundle.main.url(forResource: "animals", withExtension: "json") else {
+            throw ResourceError.missing("animals.json")
         }
-        guard let imageURL = Bundle.main.url(forResource: "cat", withExtension: "png") else {
-            throw ResourceError.missing("cat.png")
+        let geometry = try JSONDecoder().decode(SpriteGeometry.self, from: Data(contentsOf: url))
+        try geometry.validate()
+        return geometry
+    }
+
+    /// One animal's manifest and sprite sheet, from Resources/animals/<name>.{json,png}.
+    static func loadAnimal(_ name: String, geometry: SpriteGeometry) throws -> LoadedResources {
+        guard let manifestURL = Bundle.main.url(
+            forResource: name, withExtension: "json", subdirectory: "animals"
+        ) else {
+            throw ResourceError.missing("animals/\(name).json")
+        }
+        guard let imageURL = Bundle.main.url(
+            forResource: name, withExtension: "png", subdirectory: "animals"
+        ) else {
+            throw ResourceError.missing("animals/\(name).png")
         }
 
         let manifest = try Manifest.decode(from: Data(contentsOf: manifestURL))
@@ -34,7 +49,7 @@ enum Resources {
         guard let loaded = NSImage(contentsOf: imageURL),
               let cgImage = loaded.cgImage(forProposedRect: nil, context: nil, hints: nil)
         else {
-            throw ResourceError.undecodable("cat.png")
+            throw ResourceError.undecodable("animals/\(name).png")
         }
 
         // Rebuild at explicit pixel dimensions. NSImage.size comes from DPI
@@ -42,7 +57,7 @@ enum Resources {
         let pixelSize = CGSize(width: cgImage.width, height: cgImage.height)
         let image = NSImage(cgImage: cgImage, size: pixelSize)
 
-        let sheet = try SpriteSheet(manifest: manifest, sheetSize: pixelSize)
+        let sheet = try SpriteSheet(geometry: geometry, manifest: manifest, sheetSize: pixelSize)
         return LoadedResources(sheet: sheet, image: image)
     }
 }

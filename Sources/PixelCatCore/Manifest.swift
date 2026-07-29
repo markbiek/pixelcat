@@ -17,21 +17,15 @@ public struct StateDefinition: Codable, Equatable, Sendable {
 }
 
 public struct Manifest: Codable, Equatable, Sendable {
-    public let cellSize: Int
-    public let scale: Int
     public let defaultState: String
     public let decideIntervalSeconds: [Double]
     public let states: [String: StateDefinition]
 
     public init(
-        cellSize: Int,
-        scale: Int,
         defaultState: String,
         decideIntervalSeconds: [Double],
         states: [String: StateDefinition]
     ) {
-        self.cellSize = cellSize
-        self.scale = scale
         self.defaultState = defaultState
         self.decideIntervalSeconds = decideIntervalSeconds
         self.states = states
@@ -55,12 +49,6 @@ public struct Manifest: Codable, Equatable, Sendable {
     }
 
     public func validate() throws {
-        guard cellSize > 0 else {
-            throw ManifestError.invalidGeometry("cellSize must be positive, got \(cellSize)")
-        }
-        guard scale >= 1 else {
-            throw ManifestError.invalidGeometry("scale must be at least 1, got \(scale)")
-        }
         guard !states.isEmpty else {
             throw ManifestError.emptyStates
         }
@@ -96,7 +84,6 @@ public struct Manifest: Codable, Equatable, Sendable {
 public enum ManifestError: Error, Equatable, CustomStringConvertible {
     case emptyStates
     case unknownDefaultState(String)
-    case invalidGeometry(String)
     case invalidInterval(String)
     case invalidState(name: String, reason: String)
 
@@ -106,8 +93,6 @@ public enum ManifestError: Error, Equatable, CustomStringConvertible {
             return "states.json declares no states"
         case .unknownDefaultState(let name):
             return "states.json defaultState '\(name)' is not one of the declared states"
-        case .invalidGeometry(let detail):
-            return "states.json geometry is invalid: \(detail)"
         case .invalidInterval(let detail):
             return "states.json decideIntervalSeconds is invalid: \(detail)"
         case .invalidState(let name, let reason):

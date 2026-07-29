@@ -12,10 +12,11 @@ build:
 
 bundle: build
 	rm -rf $(BUNDLE)
-	mkdir -p $(CONTENTS)/MacOS $(CONTENTS)/Resources
+	mkdir -p $(CONTENTS)/MacOS $(CONTENTS)/Resources/animals
 	cp $(BIN) $(CONTENTS)/MacOS/$(APP)
 	cp Resources/Info.plist $(CONTENTS)/Info.plist
-	cp Resources/cat.png Resources/states.json $(CONTENTS)/Resources/
+	cp Resources/animals.json $(CONTENTS)/Resources/
+	cp Resources/animals/*.png Resources/animals/*.json $(CONTENTS)/Resources/animals/
 	@echo "Built $(BUNDLE)"
 
 run: bundle
@@ -26,7 +27,7 @@ test:
 	swift test
 
 art:
-	swift Tools/GenerateArt.swift Resources/cat.png
+	swift Tools/GenerateArt.swift Resources/animals/cat.png
 
 clean:
 	rm -rf .build $(BUNDLE)
