@@ -86,3 +86,17 @@ private let validJSON = """
     let manifest = try Manifest.decode(from: Data(validJSON.utf8))
     #expect(manifest.orderedStateNames == ["dance", "idle", "sleep"])
 }
+
+@Test func ignoresLegacyCellSizeAndScaleFields() throws {
+    // cellSize and scale used to live in the per-animal manifest, back when
+    // there was one animal and it was named states.json. They moved to the
+    // shared animals.json, but Manifest no longer declaring them must not
+    // turn a forked, still-carrying-them document into a decode failure.
+    let json = validJSON.replacingOccurrences(
+        of: #""defaultState": "idle","#,
+        with: #""cellSize": 24, "scale": 3, "defaultState": "idle","#
+    )
+    let manifest = try Manifest.decode(from: Data(json.utf8))
+    #expect(manifest.defaultState == "idle")
+    #expect(manifest.states.count == 3)
+}
