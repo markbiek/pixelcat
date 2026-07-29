@@ -51,7 +51,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.orderFrontRegardless()
 
         statusItemController = StatusItemController(
+            animalNames: catalog.animalNames,
             stateNames: resources.sheet.manifest.orderedStateNames,
+            onSelectAnimal: { [weak self] name in
+                self?.switchTo(animal: name)
+            },
             onSelectState: { [weak self] name in
                 self?.apply(.state(name))
             },
@@ -70,6 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         )
         statusItemController.refresh(
+            currentAnimal: currentAnimal,
             currentState: brain.state,
             isAutonomous: brain.isAutonomous
         )
@@ -165,6 +170,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             scheduleFrameTimer()
             redraw()
             statusItemController.refresh(
+                currentAnimal: currentAnimal,
                 currentState: brain.state,
                 isAutonomous: brain.isAutonomous
             )
@@ -191,6 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         redraw()
         statusItemController.refresh(
+            currentAnimal: currentAnimal,
             currentState: brain.state,
             isAutonomous: brain.isAutonomous
         )
@@ -222,6 +229,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         scheduleFrameTimer()
         scheduleDecideTimer()
         redraw()
+
+        statusItemController.setStates(loaded.sheet.manifest.orderedStateNames)
+        statusItemController.refresh(
+            currentAnimal: currentAnimal,
+            currentState: brain.state,
+            isAutonomous: brain.isAutonomous
+        )
     }
 
     // MARK: - Drawing
