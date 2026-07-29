@@ -5,7 +5,9 @@ animates, picks its own moods, and can be dragged anywhere. It runs from the
 menu bar with no Dock icon.
 
 <img width="290" height="140" alt="image" src="https://github.com/user-attachments/assets/5590507f-903c-4e49-8872-c7173ac71499" />
+
 <img width="440" height="140" alt="image" src="https://github.com/user-attachments/assets/237b8b43-151d-46a5-9701-0b84c905372a" />
+
 <img width="290" height="140" alt="image" src="https://github.com/user-attachments/assets/9d54af45-d836-48a9-b352-5bfa08e68d17" />
 
 ## Requirements
