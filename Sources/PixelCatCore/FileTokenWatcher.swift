@@ -29,6 +29,17 @@ public final class FileTokenWatcher {
     private var fileSource: DispatchSourceFileSystemObject?
     private var pending: DispatchWorkItem?
 
+    /// The inode `armFileWatch()` last opened, or 0 when the file was absent.
+    ///
+    /// The directory watch fires for *any* entry change in the parent
+    /// directory, including changes to files this watcher does not care about.
+    /// That is harmless when a directory holds one watched file, but the app
+    /// keeps `state` and `animal` side by side, so writing one would otherwise
+    /// make the other re-read and re-apply its own stale contents. Comparing
+    /// inodes tells a real create/replace/delete of *this* file apart from a
+    /// sibling's churn.
+    private var watchedInode: ino_t = 0
+
     public init(
         fileURL: URL,
         validTokens: Set<String>,
@@ -77,11 +88,15 @@ public final class FileTokenWatcher {
             queue: queue
         )
         source.setEventHandler { [weak self] in
-            // The directory entry changed (create, rename-into, or delete).
-            // Re-arm the file watch against whatever exists at `fileURL`
-            // now, then treat this as a potential content change too.
-            self?.armFileWatch()
-            self?.scheduleRead()
+            // A directory entry changed (create, rename-into, or delete).
+            // Re-arm the file watch against whatever exists at `fileURL` now.
+            // Only treat it as a content change if the file this watcher owns
+            // actually came, went, or was replaced - the event may equally
+            // have been a sibling file that is none of our business.
+            guard let self else { return }
+            if self.armFileWatch() {
+                self.scheduleRead()
+            }
         }
         // Capture `descriptor` by value rather than reading a stored property:
         // `cancel()` is asynchronous, so if `start()` runs again before this
@@ -100,7 +115,7 @@ public final class FileTokenWatcher {
         // launch decision: a stale signal from a previous session still has
         // no effect until something writes to the file again.
         queue.sync {
-            armFileWatch()
+            _ = armFileWatch()
         }
     }
 
@@ -149,12 +164,32 @@ public final class FileTokenWatcher {
     /// Tolerates the file not existing: `open()` failing here is normal,
     /// not an error. The directory watch calls this again once something
     /// creates the file.
-    private func armFileWatch() {
+    ///
+    /// Returns whether the watched file's identity changed - created, deleted,
+    /// or replaced by a different inode. The directory watch uses this to
+    /// ignore entry changes that were really about some sibling file.
+    /// `start()` discards it: arming a watch is not a content change, which is
+    /// what keeps a signal left over from a previous session from being read
+    /// at launch.
+    private func armFileWatch() -> Bool {
         fileSource?.cancel()
         fileSource = nil
 
         let descriptor = open(fileURL.path, O_EVTONLY)
-        guard descriptor >= 0 else { return }
+        guard descriptor >= 0 else {
+            // Gone. Report a change only if it was there a moment ago, so a
+            // sibling's churn while our file stays absent stays silent.
+            defer { watchedInode = 0 }
+            return watchedInode != 0
+        }
+
+        // fstat on the descriptor just opened rather than stat on the path:
+        // the path could be replaced between the two calls, and the inode
+        // recorded must be the one this source is about to watch.
+        var info = stat()
+        let inode = fstat(descriptor, &info) == 0 ? info.st_ino : 0
+        let identityChanged = inode != watchedInode
+        watchedInode = inode
 
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: descriptor,
@@ -190,6 +225,7 @@ public final class FileTokenWatcher {
         }
         fileSource = source
         source.resume()
+        return identityChanged
     }
 
     /// A single write can produce several filesystem events. Coalesce them.
