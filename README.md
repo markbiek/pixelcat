@@ -10,6 +10,12 @@ menu bar with no Dock icon.
 
 <img width="290" height="140" alt="image" src="https://github.com/user-attachments/assets/9d54af45-d836-48a9-b352-5bfa08e68d17" />
 
+<img width="420" height="140" alt="bunny states" src="docs/images/bunny-states.png" />
+
+<img width="560" height="140" alt="blob states" src="docs/images/blob-states.png" />
+
+<img width="420" height="140" alt="capybara states" src="docs/images/capybara-states.png" />
+
 ## Requirements
 
 macOS 14 or later, and the Xcode command line tools:
