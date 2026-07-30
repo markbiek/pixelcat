@@ -65,6 +65,34 @@ survive the switch.
 Neither file is read at launch — only watched. A signal left over from a
 previous session has no effect until something writes to the file again.
 
+## Speech
+
+The cat occasionally says things in a little bubble. Its vocabulary lives in
+`~/.config/pixelcat/phrases` — one phrase per line, editable by hand. A line
+may start with a state name to tie the phrase to a mood:
+
+    mew
+    sleep: five more minutes
+    dance: watch this
+
+Untagged phrases can come up any time; tagged ones only while the animal is
+in that state. Tags that no animal state matches are ignored. All animals
+share one vocabulary.
+
+Two more files under `~/.config/pixelcat` drive speech:
+
+    echo "hello there" > ~/.config/pixelcat/say     # say this now, once
+    echo "new phrase"  > ~/.config/pixelcat/learn   # learn this overnight
+
+`say` shows a bubble immediately and is not remembered. `learn` accepts one
+or more lines (state tags allowed) and queues them in
+`~/.config/pixelcat/backlog`; the cat studies while you sleep — the first
+time it's awake after 4 AM, the backlog joins its vocabulary and it
+announces what it learned. Both files are consumed after reading.
+
+Anything that can write a file can teach the cat. A nightly cron feeding
+`learn` from an LLM, a script, or your own typing all work the same way.
+
 ## Changing the art
 
 `Resources/animals.json` holds the settings every animal shares:
