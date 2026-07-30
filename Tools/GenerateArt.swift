@@ -104,11 +104,11 @@ let baseBunny = [
     "....#ooeeooooeeoo#......",
     "....#ooeeooooeeoo#......",
     "....#ooooonnooooo####...",
-    "....#oooommmmoooooooo#..",
-    "....#ooooooooooooooooo#.",
-    "....#ooooooooooooooooo#.",
-    "....#ooooooooooooooooo#.",
-    "....#oooooooooooooooo#..",
+    "....#oooommmmoooo#ooo#..",
+    "....#oooooooooooo#oooo#.",
+    "....#oooooooooooo#oooo#.",
+    "....#oooooooooooo#oooo#.",
+    "....#oooooooooooo#ooo#..",
     ".....#oooooooooo#####...",
     "......##########........",
     "........................",
@@ -566,7 +566,8 @@ func makeDog() -> Animal {
 // MARK: - Bunny
 
 func makeBunny() -> Animal {
-    let base = makeGrid(baseBunny)
+    // Experiment: mid-grey border instead of the near-black outline.
+    let base = makeGrid(baseBunny.map { $0.replacingOccurrences(of: "#", with: "w") })
     func lidded(_ grid: Grid) -> Grid {
         closedEyes(grid, row: 12, columns: [7, 8, 13, 14])
     }
