@@ -6,6 +6,7 @@ import AppKit
 /// drags for free.
 final class SpeechBubbleWindow: NSWindow {
     private let bubbleView = SpeechBubbleView()
+    private var onClick: (() -> Void)?
 
     init() {
         super.init(
@@ -25,8 +26,12 @@ final class SpeechBubbleWindow: NSWindow {
     }
 
     /// Sizes to the text, positions centered above the parent, and attaches
-    /// as a child window so dragging the cat drags the bubble.
-    func show(text: String, above parent: NSWindow) {
+    /// as a child window so dragging the cat drags the bubble. A bubble with
+    /// an onClick action accepts clicks; without one it stays click-through
+    /// so it never steals events from windows underneath.
+    func show(text: String, above parent: NSWindow, onClick: (() -> Void)? = nil) {
+        self.onClick = onClick
+        ignoresMouseEvents = onClick == nil
         bubbleView.text = text
         let size = bubbleView.sizeThatFits(text)
         var origin = NSPoint(
@@ -50,8 +55,17 @@ final class SpeechBubbleWindow: NSWindow {
     }
 
     func hide() {
+        onClick = nil
         parent?.removeChildWindow(self)
         orderOut(nil)
+    }
+
+    // Reaches us via the responder chain: SpeechBubbleView doesn't handle
+    // mouseDown, so a click anywhere on the bubble lands here.
+    override func mouseDown(with event: NSEvent) {
+        guard let action = onClick else { return }
+        hide()
+        action()
     }
 }
 
@@ -61,6 +75,11 @@ final class SpeechBubbleView: NSView {
     var text: String = "" {
         didSet { needsDisplay = true }
     }
+
+    // The app is a background (menu bar) app, so the bubble is never in an
+    // active application; without this the first click is swallowed as an
+    // activation click and never reaches mouseDown.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     private static let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold)
     private static let padding: CGFloat = 8

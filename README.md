@@ -90,6 +90,18 @@ or more lines (state tags allowed) and queues them in
 time it's awake after 4 AM, the backlog joins its vocabulary and it
 announces what it learned. Both files are consumed after reading.
 
+`say` also accepts an optional second line starting with `run:` — a shell
+command run if you click the bubble, useful for jumping to whatever sent
+the notification:
+
+    printf 'build done\nrun: open -a Terminal\n' > ~/.config/pixelcat/say
+
+The `run:` marker makes execution opt-in: a second line without it is
+ignored, so multi-line text piped into `say` stays inert. Clickable
+bubbles stick around longer than regular ones. Bubbles without a command
+(including all of the cat's own chatter) ignore clicks entirely, so they
+never get in the way of windows beneath them.
+
 Anything that can write a file can teach the cat. A nightly cron feeding
 `learn` from an LLM, a script, or your own typing all work the same way.
 

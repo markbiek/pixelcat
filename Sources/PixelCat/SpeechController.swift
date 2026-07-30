@@ -36,6 +36,7 @@ final class SpeechController {
     private var shakeStep = 0
     private var shakeOrigin = NSPoint.zero
     private var pendingShakeText: String?
+    private var pendingShakeOnClick: (() -> Void)?
     private var rng = SystemRandomNumberGenerator()
 
     init(directory: URL, catWindow: NSWindow, currentState: @escaping () -> String) {
@@ -95,18 +96,21 @@ final class SpeechController {
         }
     }
 
-    /// One-shot: speak the first line, remember nothing, consume the file.
+    /// One-shot: speak it, remember nothing, consume the file. An optional
+    /// second line is a shell command run if the bubble is clicked — the
+    /// sender's way of saying "click to see what needs attention".
     private func handleSay(_ contents: String) {
-        let firstLine = contents
-            .split(separator: "\n", omittingEmptySubsequences: true)
-            .first.map(String.init) ?? ""
-        let text = firstLine.trimmingCharacters(in: .whitespaces)
-        if !text.isEmpty {
-            let message = String(text.prefix(Phrase.maxLength))
+        if let message = SayMessage.parse(contents) {
+            let onClick = message.clickCommand.map { command in
+                { [weak self] in
+                    guard let self else { return }
+                    self.runClickCommand(command)
+                }
+            }
             if Self.disturbedStates.contains(currentState()) {
-                shakeThenSpeak(message)
+                shakeThenSpeak(message.text, onClick: onClick)
             } else {
-                speak(message)
+                speak(message.text, onClick: onClick)
             }
         }
         consume(sayURL)
@@ -131,9 +135,22 @@ final class SpeechController {
 
     // MARK: - Speaking
 
-    private func speak(_ text: String) {
-        bubble.show(text: text, above: catWindow)
-        scheduleDismissTimer(for: text)
+    private func speak(_ text: String, onClick: (() -> Void)? = nil) {
+        bubble.show(text: text, above: catWindow, onClick: onClick)
+        scheduleDismissTimer(for: text, clickable: onClick != nil)
+    }
+
+    /// A login shell so the command sees the user's PATH — the app itself
+    /// launches from Finder with the bare system one.
+    private func runClickCommand(_ command: String) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = ["-lc", command]
+        do {
+            try process.run()
+        } catch {
+            warn("cannot run click command: \(error)")
+        }
     }
 
     private func speakFromPool() {
@@ -147,9 +164,13 @@ final class SpeechController {
         }
     }
 
-    private func scheduleDismissTimer(for text: String) {
+    /// Clickable bubbles are invitations, so they linger longer than the
+    /// cat's own passing remarks.
+    private func scheduleDismissTimer(for text: String, clickable: Bool) {
         dismissTimer?.invalidate()
-        let duration = min(3.0 + 0.05 * Double(text.count), 8.0)
+        let base = clickable ? 12.0 : 4.5
+        let cap = clickable ? 20.0 : 10.0
+        let duration = min(base + 0.05 * Double(text.count), cap)
         let timer = Timer(
             timeInterval: duration,
             target: self,
@@ -176,8 +197,9 @@ final class SpeechController {
     /// A decaying horizontal jiggle of the cat window, then the message.
     /// Timers here follow the same target/selector + .common discipline as
     /// everything else, so the shake doesn't freeze mid-drag or mid-menu.
-    private func shakeThenSpeak(_ text: String) {
+    private func shakeThenSpeak(_ text: String, onClick: (() -> Void)? = nil) {
         pendingShakeText = text
+        pendingShakeOnClick = onClick
         // A say arriving mid-shake must not capture the jiggled position as
         // the origin to restore, so only record it when no shake is running.
         if shakeTimer == nil {
@@ -204,8 +226,10 @@ final class SpeechController {
             shakeTimer = nil
             catWindow.setFrameOrigin(shakeOrigin)
             if let text = pendingShakeText {
+                let onClick = pendingShakeOnClick
                 pendingShakeText = nil
-                speak(text)
+                pendingShakeOnClick = nil
+                speak(text, onClick: onClick)
             }
             return
         }
