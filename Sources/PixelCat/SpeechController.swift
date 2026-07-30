@@ -8,8 +8,8 @@ import PixelCatCore
 final class SpeechController {
     /// How often the animal chats unprompted, jittered so it isn't a
     /// metronome. Also the polling cadence for the overnight check, which
-    /// is why "first timer tick after 4 AM" lands within ~20 minutes.
-    static let chatterInterval: ClosedRange<Double> = 600...1200
+    /// is why "first timer tick after 4 AM" lands within ~10 minutes.
+    static let chatterInterval: ClosedRange<Double> = 300...600
 
     /// Chance of a remark when the animal changes state on its own.
     static let transitionChatterChance = 0.25
