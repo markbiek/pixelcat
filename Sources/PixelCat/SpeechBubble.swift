@@ -29,13 +29,18 @@ final class SpeechBubbleWindow: NSWindow {
     func show(text: String, above parent: NSWindow) {
         bubbleView.text = text
         let size = bubbleView.sizeThatFits(text)
+        var origin = NSPoint(
+            x: parent.frame.midX - size.width / 2,
+            y: parent.frame.maxY - 6
+        )
+        // A cat dragged to a screen edge would otherwise push the bubble
+        // partway off-screen; clamp to the parent's own screen.
+        if let visible = (parent.screen ?? NSScreen.main)?.visibleFrame {
+            origin.x = min(max(origin.x, visible.minX), visible.maxX - size.width)
+            origin.y = min(max(origin.y, visible.minY), visible.maxY - size.height)
+        }
         setFrame(
-            NSRect(
-                x: parent.frame.midX - size.width / 2,
-                y: parent.frame.maxY - 6,
-                width: size.width,
-                height: size.height
-            ),
+            NSRect(x: origin.x, y: origin.y, width: size.width, height: size.height),
             display: true
         )
         if parent.childWindows?.contains(self) != true {
@@ -61,6 +66,11 @@ final class SpeechBubbleView: NSView {
     private static let padding: CGFloat = 8
     private static let tailHeight: CGFloat = 8
     private static let maxTextWidth: CGFloat = 200
+    private static let borderWidth: CGFloat = 2
+    private static let cornerRadius: CGFloat = 4
+    private static let borderInset: CGFloat = 1
+    private static let tailHalfWidth: CGFloat = 6
+    private static let tailTipXOffset: CGFloat = 2
     private static let textAttributes: [NSAttributedString.Key: Any] = [
         .font: font,
         .foregroundColor: NSColor.black,
@@ -80,13 +90,13 @@ final class SpeechBubbleView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         let body = NSRect(
-            x: 1,
+            x: Self.borderInset,
             y: Self.tailHeight,
-            width: bounds.width - 2,
-            height: bounds.height - Self.tailHeight - 1
+            width: bounds.width - Self.borderInset * 2,
+            height: bounds.height - Self.tailHeight - Self.borderInset
         )
-        let bubble = NSBezierPath(roundedRect: body, xRadius: 4, yRadius: 4)
-        bubble.lineWidth = 2
+        let bubble = NSBezierPath(roundedRect: body, xRadius: Self.cornerRadius, yRadius: Self.cornerRadius)
+        bubble.lineWidth = Self.borderWidth
 
         NSColor.white.setFill()
         bubble.fill()
@@ -96,9 +106,9 @@ final class SpeechBubbleView: NSView {
         // Tail: filled after the border so it visually merges with the body,
         // then just its two outer edges are stroked.
         let tail = NSBezierPath()
-        let tailLeft = NSPoint(x: body.midX - 6, y: body.minY + 2)
-        let tailTip = NSPoint(x: body.midX - 2, y: 0)
-        let tailRight = NSPoint(x: body.midX + 6, y: body.minY + 2)
+        let tailLeft = NSPoint(x: body.midX - Self.tailHalfWidth, y: body.minY + Self.tailTipXOffset)
+        let tailTip = NSPoint(x: body.midX - Self.tailTipXOffset, y: 0)
+        let tailRight = NSPoint(x: body.midX + Self.tailHalfWidth, y: body.minY + Self.tailTipXOffset)
         tail.move(to: tailLeft)
         tail.line(to: tailTip)
         tail.line(to: tailRight)
@@ -107,7 +117,7 @@ final class SpeechBubbleView: NSView {
         tail.fill()
 
         let outline = NSBezierPath()
-        outline.lineWidth = 2
+        outline.lineWidth = Self.borderWidth
         outline.move(to: tailLeft)
         outline.line(to: tailTip)
         outline.line(to: tailRight)

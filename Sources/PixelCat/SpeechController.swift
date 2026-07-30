@@ -18,6 +18,8 @@ final class SpeechController {
     private let sayURL: URL
     private let learnURL: URL
     private let bubble = SpeechBubbleWindow()
+    // Safe unowned: AppDelegate creates this window once and never reassigns
+    // it (switchTo(animal:) reuses the same window), so it outlives us.
     private unowned let catWindow: NSWindow
     private let currentState: () -> String
 
