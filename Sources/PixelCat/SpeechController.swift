@@ -168,9 +168,9 @@ final class SpeechController {
 
     // MARK: - Grumpy shake
 
-    /// Roughly a third of a second at 60 Hz — long enough to read as a
+    /// Roughly half a second at 60 Hz — long enough to read as a
     /// protest, short enough not to delay a notification meaningfully.
-    private static let shakeSteps = 20
+    private static let shakeSteps = 30
     private static let shakeAmplitude: CGFloat = 5
 
     /// A decaying horizontal jiggle of the cat window, then the message.
@@ -210,7 +210,7 @@ final class SpeechController {
             return
         }
         let progress = Double(shakeStep) / Double(Self.shakeSteps)
-        let offset = sin(progress * .pi * 6)          // three oscillations
+        let offset = sin(progress * .pi * 8)          // four oscillations
             * Double(Self.shakeAmplitude)
             * (1.0 - progress)                        // dying down, not a buzz
         catWindow.setFrameOrigin(NSPoint(x: shakeOrigin.x + offset, y: shakeOrigin.y))
