@@ -17,10 +17,18 @@ import Testing
     }
 
     @Test func anUnmarkedSecondLineIsInert() {
-        // Multi-line text relayed into the file must never gain behavior.
+        // Unmarked lines never gain behavior; only marked lines do.
         #expect(
             SayMessage.parse("line one\nSome Random App\n")
                 == SayMessage(text: "line one", clickApp: nil)
+        )
+    }
+
+    @Test func markersAfterUnmarkedLinesAreStillHonored() {
+        // The scan covers every line after the first, not just line 2.
+        #expect(
+            SayMessage.parse("hey\nsome chatter\napp: Finder")?.clickApp
+                == "Finder"
         )
     }
 
@@ -33,6 +41,33 @@ import Testing
         // `open -a` would treat these as bundle paths, not names.
         #expect(SayMessage.parse("hey\napp: /tmp/Evil.app")?.clickApp == nil)
         #expect(SayMessage.parse("hey\napp: ../Evil.app")?.clickApp == nil)
+    }
+
+    @Test func aRunLineParsesToAnArgv() {
+        #expect(
+            SayMessage.parse("hey\nrun: /usr/bin/open -a Terminal")?.clickCommand
+                == ["/usr/bin/open", "-a", "Terminal"]
+        )
+    }
+
+    @Test func aRelativeExecutableIsRejected() {
+        // No PATH lookup: only absolute paths run.
+        #expect(SayMessage.parse("hey\nrun: open -a Terminal")?.clickCommand == nil)
+        #expect(SayMessage.parse("hey\nrun:")?.clickCommand == nil)
+    }
+
+    @Test func shellMetacharactersAreLiteralArguments() {
+        // There is no shell: chaining syntax survives only as inert argv.
+        #expect(
+            SayMessage.parse("hey\nrun: /bin/echo hi; /bin/rm -rf /")?.clickCommand
+                == ["/bin/echo", "hi;", "/bin/rm", "-rf", "/"]
+        )
+    }
+
+    @Test func appAndRunLinesCombine() {
+        let message = SayMessage.parse("hey\napp: cmux\nrun: /usr/bin/true now")
+        #expect(message?.clickApp == "cmux")
+        #expect(message?.clickCommand == ["/usr/bin/true", "now"])
     }
 
     @Test func appNamesMayContainSpaces() {
@@ -49,10 +84,29 @@ import Testing
         )
     }
 
-    @Test func linesBeyondTheSecondAreIgnored() {
+    @Test func theFirstAcceptedAppLineWins() {
         #expect(
             SayMessage.parse("hey\napp: iTerm\napp: Finder")?.clickApp
                 == "iTerm"
+        )
+    }
+
+    @Test func theFirstAcceptedRunLineWins() {
+        #expect(
+            SayMessage.parse("hey\nrun: /bin/a\nrun: /bin/b")?.clickCommand
+                == ["/bin/a"]
+        )
+    }
+
+    @Test func aRejectedMarkedLineLeavesItsSlotOpen() {
+        // An invalid marker doesn't consume the slot; a later valid one wins.
+        #expect(
+            SayMessage.parse("hey\nrun: relative\nrun: /bin/b")?.clickCommand
+                == ["/bin/b"]
+        )
+        #expect(
+            SayMessage.parse("hey\napp: /Evil.app\napp: Finder")?.clickApp
+                == "Finder"
         )
     }
 

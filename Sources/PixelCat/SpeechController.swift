@@ -96,21 +96,33 @@ final class SpeechController {
         }
     }
 
-    /// One-shot: speak it, remember nothing, consume the file. An optional
-    /// second line names an app to bring forward if the bubble is clicked —
-    /// the sender's way of saying "click to see what needs attention".
+    /// One-shot: speak it, remember nothing, consume the file. Optional
+    /// marked lines make the bubble clickable — the sender's way of saying
+    /// "click to see what needs attention".
     private func handleSay(_ contents: String) {
         if let message = SayMessage.parse(contents) {
-            let onClick = message.clickApp.map { app in
-                { [weak self] in
+            var onClick: (() -> Void)?
+            if message.clickApp != nil || message.clickCommand != nil {
+                onClick = { [weak self] in
                     guard let self else { return }
-                    self.activateApp(named: app)
+                    if let app = message.clickApp {
+                        self.activateApp(named: app)
+                    }
+                    if let command = message.clickCommand {
+                        self.runCommand(command)
+                    }
                 }
             }
+            // A command-armed bubble shows the argv it will run, so the
+            // click is informed consent rather than a leap of faith.
+            var displayText = message.text
+            if let command = message.clickCommand {
+                displayText += "\nrun: " + command.joined(separator: " ")
+            }
             if Self.disturbedStates.contains(currentState()) {
-                shakeThenSpeak(message.text, onClick: onClick)
+                shakeThenSpeak(displayText, onClick: onClick)
             } else {
-                speak(message.text, onClick: onClick)
+                speak(displayText, onClick: onClick)
             }
         }
         consume(sayURL)
@@ -144,13 +156,23 @@ final class SpeechController {
     /// everyday names ("iTerm", "Terminal") without a bundle-id lookup, and
     /// the name travels as a plain argument — nothing is shell-interpreted.
     private func activateApp(named name: String) {
+        runProcess(at: "/usr/bin/open", arguments: ["-a", name])
+    }
+
+    /// The argv from a `run:` line: absolute executable path (parse
+    /// guarantees it), arguments passed through verbatim — no shell.
+    private func runCommand(_ argv: [String]) {
+        runProcess(at: argv[0], arguments: Array(argv.dropFirst()))
+    }
+
+    private func runProcess(at path: String, arguments: [String]) {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        process.arguments = ["-a", name]
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = arguments
         do {
             try process.run()
         } catch {
-            warn("cannot activate \(name): \(error)")
+            warn("cannot run \(path): \(error)")
         }
     }
 

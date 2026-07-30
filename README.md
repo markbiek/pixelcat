@@ -90,13 +90,21 @@ or more lines (state tags allowed) and queues them in
 time it's awake after 4 AM, the backlog joins its vocabulary and it
 announces what it learned. Both files are consumed after reading.
 
-`say` also accepts an optional second line starting with `app:` — the app
-brought forward if you click the bubble, useful for jumping to whatever
-sent the notification:
+`say` also accepts optional marked lines after the message that make the
+bubble clickable — useful for jumping to whatever sent the notification:
+
+    app: <name>              bring this app forward on click
+    run: /abs/path args...   execute this argv on click
 
     printf 'build done\napp: Terminal\n' > ~/.config/pixelcat/say
 
-The `app:` marker makes this opt-in: a second line without it is
+`run:` never involves a shell: the line is whitespace-split into an argv,
+the executable must be an absolute path, and shell syntax like `;` or
+`$(...)` travels as inert literal arguments. A bubble armed with a `run:`
+command displays the full command it will run, so the click is informed
+consent. Both markers may appear together (`app:` to focus, `run:` to go
+somewhere specific inside it).
+The markers make clicking opt-in: unmarked extra lines are
 ignored, so multi-line text piped into `say` stays inert. Clickable
 bubbles stick around longer than regular ones. Bubbles without a command
 (including all of the cat's own chatter) ignore clicks entirely, so they
