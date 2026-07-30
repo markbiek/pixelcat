@@ -116,6 +116,156 @@ let baseBunny = [
     "........................",
 ]
 
+// The blob is a golden jelly dome with one big cyclops eye and a white
+// shine spot. Three hand-drawn shapes — dome, sag, puddle — carry the
+// melt: shapes that change silhouette can't come from shift() alone. The
+// eye sits at columns 10-13 in every shape so one helper can blink it,
+// and the right margin stays clear for the sleep mark.
+let blobDome = [
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    ".........######.........",
+    ".......#yyyyyyyy#.......",
+    "......#yooyyyyyyy#......",
+    ".....#yyooyyyyyyyy#.....",
+    "....#yyyyyeoeyyyyyy#....",
+    "....#yyyyyeeeyyyyyy#....",
+    "....#yyyyyeeeyyyyyy#....",
+    "....#yyyyyyyyyyyyyy#....",
+    "....#yyyyyyyyyyyyyy#....",
+    "....#yyyyyyyyyyyyyy#....",
+    "....#yyyyyyyyyyyyyy#....",
+    "....#yyyyyyyyyyyyyy#....",
+    "....################....",
+    "........................",
+    "........................",
+    "........................",
+]
+
+// Mid-melt: two rows shorter, one column wider each side, the eye already
+// squashed a row.
+let blobSag = [
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........########........",
+    ".....#yyooyyyyyyyy#.....",
+    "...#yyyyyyyyyyyyyyyy#...",
+    "...#yyyyyyeoeyyyyyyy#...",
+    "...#yyyyyyeeeyyyyyyy#...",
+    "...#yyyyyyyyyyyyyyyy#...",
+    "...#yyyyyyyyyyyyyyyy#...",
+    "...#yyyyyyyyyyyyyyyy#...",
+    "...#yyyyyyyyyyyyyyyy#...",
+    "...##################...",
+    "........................",
+    "........................",
+    "........................",
+]
+
+// Fully melted: five rows tall, nearly cell-wide, the eye squashed to a
+// one-row squint with jelly all round it — a taller eye would touch a rim
+// and read as a notch in the outline. The shine is gone; melted jelly has
+// no dome to catch the light.
+let blobPuddle = [
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    ".....##############.....",
+    "...##yyyyyyyyyyyyyy##...",
+    ".#yyyyyyyyeeeyyyyyyyyy#.",
+    ".#yyyyyyyyyyyyyyyyyyyy#.",
+    ".######################.",
+    "........................",
+    "........................",
+    "........................",
+]
+
+// The blob's wavy mouth, layered over the dome like the bat's wings. Two
+// phases of the same dotted zigzag — swapping them makes the wave appear
+// to travel, which is the whole ripple state. Only the dome has a mouth;
+// melted shapes lost theirs along with the shine.
+let blobMouthA = [
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    ".........m.m.m..........",
+    "..........m.m.m.........",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+]
+
+let blobMouthB = [
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "..........m.m.m.........",
+    ".........m.m.m..........",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+]
+
 // The bat's body, drawn without wings so the flap can be layered over it. Grey
 // rather than white: on a dark menu bar a black bat is a hole, and the outline
 // is doing no work there.
@@ -330,6 +480,7 @@ func color(for character: Character) -> (UInt8, UInt8, UInt8, UInt8)? {
     case "w": return (140, 140, 150, 255)    // mid-grey whisker: dark enough
                                              // to read on a white window,
                                              // light enough on a dark one
+    case "y": return (240, 200, 70, 255)     // golden jelly
     case "z": return (245, 245, 245, 255)    // sleep mark
     default:  return nil                     // transparent
     }
@@ -563,6 +714,73 @@ func makeDog() -> Animal {
     return Animal(name: "dog", rows: [idleFrames, sleepFrames, wagFrames])
 }
 
+// MARK: - Blob
+
+func makeBlob() -> Animal {
+    let dome = overlay(makeGrid(blobDome), makeGrid(blobMouthA))
+    let domeRippled = overlay(makeGrid(blobDome), makeGrid(blobMouthB))
+    let sag = makeGrid(blobSag)
+    let puddle = makeGrid(blobPuddle)
+
+    /// Shuts the cyclops eye: the eye block (glint included) becomes body,
+    /// with a lid line across `lidRow` when there's room to show one. The
+    /// puddle's one-row squint gets no lid — a lid line is the same black
+    /// as the eye, so there it simply closes to smooth jelly. Eye columns
+    /// are fixed at 10-12 in every blob shape; the rows move as it squashes.
+    func closed(_ grid: Grid, eyeRows: ClosedRange<Int>, lidRow: Int? = nil) -> Grid {
+        var output = grid
+        for y in eyeRows {
+            for x in 10...12 where output[y][x] == "e" || output[y][x] == "o" {
+                output[y][x] = "y"
+            }
+        }
+        if let lidRow {
+            for x in 10...12 {
+                output[lidRow][x] = "#"
+            }
+        }
+        return output
+    }
+
+    // Row 0: idle. The squash-and-settle bob, blinking on the third frame —
+    // with one eye, the blink is most of the personality.
+    let idleFrames: [Grid] = [
+        dome,
+        shift(dome, dx: 0, dy: 1),
+        closed(shift(dome, dx: 0, dy: 1), eyeRows: 13...15, lidRow: 14),
+        dome,
+    ]
+
+    // Row 1: sleep. The settled puddle with the eye shut and the mark rising.
+    let sleeping = closed(puddle, eyeRows: 18...18)
+    let sleepFrames: [Grid] = [
+        addSleepMark(sleeping, atHeight: 4),
+        addSleepMark(sleeping, atHeight: 1),
+    ]
+
+    // Row 2: melt. Dome sags flat, blinks once down there, gathers itself
+    // back up. Ending on the sag lets the loop close onto the dome.
+    let meltFrames: [Grid] = [
+        dome,
+        sag,
+        puddle,
+        closed(puddle, eyeRows: 18...18),
+        puddle,
+        sag,
+    ]
+
+    // Row 3: ripple. The body holds perfectly still while the mouth's two
+    // wave phases alternate — the zigzag appears to travel.
+    let rippleFrames: [Grid] = [
+        dome,
+        domeRippled,
+        dome,
+        domeRippled,
+    ]
+
+    return Animal(name: "blob", rows: [idleFrames, sleepFrames, meltFrames, rippleFrames])
+}
+
 // MARK: - Bunny
 
 func makeBunny() -> Animal {
@@ -706,6 +924,6 @@ let outputDirectory = CommandLine.arguments.count > 1
     ? CommandLine.arguments[1]
     : "Resources/animals"
 
-for animal in [makeCat(), makeDog(), makeBunny(), makeBat()] {
+for animal in [makeCat(), makeDog(), makeBunny(), makeBat(), makeBlob()] {
     render(animal, into: outputDirectory)
 }
