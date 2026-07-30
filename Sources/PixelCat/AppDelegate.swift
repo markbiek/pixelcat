@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItemController: StatusItemController!
     private var signalWatcher: StateSignalWatcher?
     private var animalWatcher: FileTokenWatcher?
+    private var speechController: SpeechController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -50,6 +51,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: window
         )
         window.orderFrontRegardless()
+
+        speechController = SpeechController(
+            directory: StateSignal.defaultFileURL.deletingLastPathComponent(),
+            catWindow: window,
+            currentState: { [weak self] in self?.brain.state ?? "" }
+        )
+        speechController.start()
 
         statusItemController = StatusItemController(
             animalNames: catalog.animalNames,
@@ -92,6 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         decideTimer?.invalidate()
         signalWatcher?.stop()
         animalWatcher?.stop()
+        speechController?.stop()
     }
 
     /// Started once and never rebuilt, unlike the state watcher: the set of
@@ -198,6 +207,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 currentState: brain.state,
                 isAutonomous: brain.isAutonomous
             )
+            speechController.noteStateChanged()
         }
         scheduleDecideTimer()
     }
