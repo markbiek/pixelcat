@@ -14,6 +14,11 @@ final class SpeechController {
     /// Chance of a remark when the animal changes state on its own.
     static let transitionChatterChance = 0.25
 
+    /// States where a say message is an interruption: the animal protests
+    /// with a quick shake before delivering it. Matched by name, so the
+    /// bat's `hang` deliberately doesn't count as dozing.
+    static let disturbedStates: Set<String> = ["idle", "sleep"]
+
     private let store: PhraseStore
     private let sayURL: URL
     private let learnURL: URL
@@ -27,6 +32,10 @@ final class SpeechController {
     private var learnWatcher: FileTokenWatcher?
     private var chatterTimer: Timer?
     private var dismissTimer: Timer?
+    private var shakeTimer: Timer?
+    private var shakeStep = 0
+    private var shakeOrigin = NSPoint.zero
+    private var pendingShakeText: String?
     private var rng = SystemRandomNumberGenerator()
 
     init(directory: URL, catWindow: NSWindow, currentState: @escaping () -> String) {
@@ -54,6 +63,7 @@ final class SpeechController {
         learnWatcher?.stop()
         chatterTimer?.invalidate()
         dismissTimer?.invalidate()
+        shakeTimer?.invalidate()
     }
 
     /// Called on autonomous state changes; sometimes the animal remarks on
@@ -92,7 +102,12 @@ final class SpeechController {
             .first.map(String.init) ?? ""
         let text = firstLine.trimmingCharacters(in: .whitespaces)
         if !text.isEmpty {
-            speak(String(text.prefix(Phrase.maxLength)))
+            let message = String(text.prefix(Phrase.maxLength))
+            if Self.disturbedStates.contains(currentState()) {
+                shakeThenSpeak(message)
+            } else {
+                speak(message)
+            }
         }
         consume(sayURL)
     }
@@ -149,6 +164,56 @@ final class SpeechController {
     @objc
     private func dismissTimerFired() {
         bubble.hide()
+    }
+
+    // MARK: - Grumpy shake
+
+    /// Roughly a third of a second at 60 Hz — long enough to read as a
+    /// protest, short enough not to delay a notification meaningfully.
+    private static let shakeSteps = 20
+    private static let shakeAmplitude: CGFloat = 5
+
+    /// A decaying horizontal jiggle of the cat window, then the message.
+    /// Timers here follow the same target/selector + .common discipline as
+    /// everything else, so the shake doesn't freeze mid-drag or mid-menu.
+    private func shakeThenSpeak(_ text: String) {
+        pendingShakeText = text
+        // A say arriving mid-shake must not capture the jiggled position as
+        // the origin to restore, so only record it when no shake is running.
+        if shakeTimer == nil {
+            shakeOrigin = catWindow.frame.origin
+            shakeStep = 0
+        }
+        shakeTimer?.invalidate()
+        let timer = Timer(
+            timeInterval: 1.0 / 60.0,
+            target: self,
+            selector: #selector(shakeTimerFired),
+            userInfo: nil,
+            repeats: true
+        )
+        RunLoop.main.add(timer, forMode: .common)
+        shakeTimer = timer
+    }
+
+    @objc
+    private func shakeTimerFired() {
+        shakeStep += 1
+        guard shakeStep < Self.shakeSteps else {
+            shakeTimer?.invalidate()
+            shakeTimer = nil
+            catWindow.setFrameOrigin(shakeOrigin)
+            if let text = pendingShakeText {
+                pendingShakeText = nil
+                speak(text)
+            }
+            return
+        }
+        let progress = Double(shakeStep) / Double(Self.shakeSteps)
+        let offset = sin(progress * .pi * 6)          // three oscillations
+            * Double(Self.shakeAmplitude)
+            * (1.0 - progress)                        // dying down, not a buzz
+        catWindow.setFrameOrigin(NSPoint(x: shakeOrigin.x + offset, y: shakeOrigin.y))
     }
 
     // MARK: - Chatter and overnight learning
