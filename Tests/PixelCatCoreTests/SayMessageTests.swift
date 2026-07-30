@@ -5,41 +5,54 @@ import Testing
     @Test func aSingleLineIsJustText() {
         #expect(
             SayMessage.parse("hello there\n")
-                == SayMessage(text: "hello there", clickCommand: nil)
+                == SayMessage(text: "hello there", clickApp: nil)
         )
     }
 
-    @Test func aMarkedSecondLineBecomesTheClickCommand() {
+    @Test func aMarkedSecondLineBecomesTheClickApp() {
         #expect(
-            SayMessage.parse("build done\nrun: open -a Terminal\n")
-                == SayMessage(text: "build done", clickCommand: "open -a Terminal")
+            SayMessage.parse("build done\napp: Terminal\n")
+                == SayMessage(text: "build done", clickApp: "Terminal")
         )
     }
 
     @Test func anUnmarkedSecondLineIsInert() {
-        // Multi-line text relayed into the file must never gain a command.
+        // Multi-line text relayed into the file must never gain behavior.
         #expect(
-            SayMessage.parse("line one\nrm -rf /\n")
-                == SayMessage(text: "line one", clickCommand: nil)
+            SayMessage.parse("line one\nSome Random App\n")
+                == SayMessage(text: "line one", clickApp: nil)
         )
     }
 
-    @Test func aBareMarkerYieldsNoCommand() {
-        #expect(SayMessage.parse("hey\nrun:")?.clickCommand == nil)
-        #expect(SayMessage.parse("hey\nrun:   ")?.clickCommand == nil)
+    @Test func aBareMarkerYieldsNoApp() {
+        #expect(SayMessage.parse("hey\napp:")?.clickApp == nil)
+        #expect(SayMessage.parse("hey\napp:   ")?.clickApp == nil)
     }
 
-    @Test func blankLinesBetweenTextAndCommandAreSkipped() {
+    @Test func pathShapedAppValuesAreRejected() {
+        // `open -a` would treat these as bundle paths, not names.
+        #expect(SayMessage.parse("hey\napp: /tmp/Evil.app")?.clickApp == nil)
+        #expect(SayMessage.parse("hey\napp: ../Evil.app")?.clickApp == nil)
+    }
+
+    @Test func appNamesMayContainSpaces() {
         #expect(
-            SayMessage.parse("hey\n\n  \nrun: open -a iTerm")
-                == SayMessage(text: "hey", clickCommand: "open -a iTerm")
+            SayMessage.parse("psst\napp: Visual Studio Code")?.clickApp
+                == "Visual Studio Code"
+        )
+    }
+
+    @Test func blankLinesBetweenTextAndAppAreSkipped() {
+        #expect(
+            SayMessage.parse("hey\n\n  \napp: iTerm")
+                == SayMessage(text: "hey", clickApp: "iTerm")
         )
     }
 
     @Test func linesBeyondTheSecondAreIgnored() {
         #expect(
-            SayMessage.parse("hey\nrun: open -a iTerm\nrun: rm -rf /")?.clickCommand
-                == "open -a iTerm"
+            SayMessage.parse("hey\napp: iTerm\napp: Finder")?.clickApp
+                == "iTerm"
         )
     }
 
@@ -55,8 +68,8 @@ import Testing
 
     @Test func surroundingWhitespaceIsTrimmed() {
         #expect(
-            SayMessage.parse("  hi  \n  run: open -a kitty  ")
-                == SayMessage(text: "hi", clickCommand: "open -a kitty")
+            SayMessage.parse("  hi  \n  app: kitty  ")
+                == SayMessage(text: "hi", clickApp: "kitty")
         )
     }
 }

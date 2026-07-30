@@ -97,14 +97,14 @@ final class SpeechController {
     }
 
     /// One-shot: speak it, remember nothing, consume the file. An optional
-    /// second line is a shell command run if the bubble is clicked — the
-    /// sender's way of saying "click to see what needs attention".
+    /// second line names an app to bring forward if the bubble is clicked —
+    /// the sender's way of saying "click to see what needs attention".
     private func handleSay(_ contents: String) {
         if let message = SayMessage.parse(contents) {
-            let onClick = message.clickCommand.map { command in
+            let onClick = message.clickApp.map { app in
                 { [weak self] in
                     guard let self else { return }
-                    self.runClickCommand(command)
+                    self.activateApp(named: app)
                 }
             }
             if Self.disturbedStates.contains(currentState()) {
@@ -140,16 +140,17 @@ final class SpeechController {
         scheduleDismissTimer(for: text, clickable: onClick != nil)
     }
 
-    /// A login shell so the command sees the user's PATH — the app itself
-    /// launches from Finder with the bare system one.
-    private func runClickCommand(_ command: String) {
+    /// `open -a` rather than NSWorkspace because it resolves apps by their
+    /// everyday names ("iTerm", "Terminal") without a bundle-id lookup, and
+    /// the name travels as a plain argument — nothing is shell-interpreted.
+    private func activateApp(named name: String) {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        process.arguments = ["-lc", command]
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = ["-a", name]
         do {
             try process.run()
         } catch {
-            warn("cannot run click command: \(error)")
+            warn("cannot activate \(name): \(error)")
         }
     }
 
