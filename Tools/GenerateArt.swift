@@ -208,6 +208,97 @@ let blobPuddle = [
     "........................",
 ]
 
+// The capybara sits in three-quarter view facing left, like the classic
+// sticker pose: a big muzzle-heavy head with a darker snout patch
+// (nostril and mouth line drawn inside it), one visible eye, small ears
+// on top — the far one with a darker inner — and the body a round mass
+// behind, front legs tucked under the chest with dark paw patches. The
+// back stays below the top-right corner so the sleep mark fits.
+let baseCapybara = [
+    "........................",
+    "........................",
+    "....##.....##...........",
+    "...#cc#...#cd#..........",
+    "..##cc#####cc##.........",
+    "..#cccccccccccc#........",
+    ".#cccccccccccccc##......",
+    ".#cccccccccccccccc##....",
+    "#dddccccceeccccccccc#...",
+    "#dbdccccceeccccccccc#...",
+    "#dddcccccccccccccccc#...",
+    "#dd#dccccccccccccccc#...",
+    "#ddddccccccccccccccc#...",
+    ".#dddcccccccccccccccc#..",
+    ".#ccccccccccccccccccc#..",
+    "..#cccccccccccccccccc#..",
+    "..#cccc#cc#cccccccccc#..",
+    "..#cccc#cc#cccccccccc#..",
+    "..#cccc#cc#cccccccccc#..",
+    "..#cddc#dd#cccccccccc#..",
+    "..####################..",
+    "........................",
+    "........................",
+    "........................",
+]
+
+// Grass overlays for the chew: a mouthful dangling below the chin, the
+// way capybaras let it hang. A is the fresh tuft; B is the same mouthful
+// shorter and shifted — alternating them while the head bobs is the
+// munch. Blades cross the jaw outline deliberately: grass in front.
+let capyGrassA = [
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    ".g......................",
+    "g.g.....................",
+    ".g.g....................",
+    "..g.....................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+]
+
+let capyGrassB = [
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    ".g......................",
+    "g.g.....................",
+    ".g......................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+]
+
 // The blob's wavy mouth, layered over the dome like the bat's wings. Two
 // phases of the same dotted zigzag — swapping them makes the wave appear
 // to travel, which is the whole ripple state. Only the dome has a mouth;
@@ -481,6 +572,9 @@ func color(for character: Character) -> (UInt8, UInt8, UInt8, UInt8)? {
                                              // to read on a white window,
                                              // light enough on a dark one
     case "y": return (240, 200, 70, 255)     // golden jelly
+    case "c": return (170, 120, 75, 255)     // capybara tawny
+    case "d": return (135, 95, 60, 255)      // capybara muzzle and paws
+    case "g": return (95, 165, 70, 255)      // grass
     case "z": return (245, 245, 245, 255)    // sleep mark
     default:  return nil                     // transparent
     }
@@ -714,6 +808,51 @@ func makeDog() -> Animal {
     return Animal(name: "dog", rows: [idleFrames, sleepFrames, wagFrames])
 }
 
+// MARK: - Capybara
+
+func makeCapybara() -> Animal {
+    let base = makeGrid(baseCapybara)
+    let grassA = makeGrid(capyGrassA)
+    let grassB = makeGrid(capyGrassB)
+
+    /// Capybara fur is brown, so the shared closedEyes (which blanks eyes
+    /// to white) can't be used; same shape, different fill. One eye in the
+    /// three-quarter view, at columns 9-10.
+    func lidded(_ grid: Grid, lidRow: Int) -> Grid {
+        var output = setEyes(grid, to: "c")
+        for x in [9, 10] {
+            output[lidRow][x] = "#"
+        }
+        return output
+    }
+
+    // Row 0: idle. The family bob-and-blink.
+    let idleFrames: [Grid] = [
+        base,
+        shift(base, dx: 0, dy: 1),
+        lidded(shift(base, dx: 0, dy: 1), lidRow: 10),
+        base,
+    ]
+
+    // Row 1: sleep. Settled a row down, eyes shut, mark rising.
+    let sleeping = lidded(shift(base, dx: 0, dy: 1), lidRow: 10)
+    let sleepFrames: [Grid] = [
+        addSleepMark(sleeping, atHeight: 4),
+        addSleepMark(sleeping, atHeight: 1),
+    ]
+
+    // Row 2: chew. The tall mouthful and the flattened one alternate while
+    // the whole head bobs a pixel — grass moves with the mouth it's in.
+    let chewFrames: [Grid] = [
+        overlay(base, grassA),
+        shift(overlay(base, grassB), dx: 0, dy: 1),
+        overlay(base, grassA),
+        shift(overlay(base, grassB), dx: 0, dy: 1),
+    ]
+
+    return Animal(name: "capybara", rows: [idleFrames, sleepFrames, chewFrames])
+}
+
 // MARK: - Blob
 
 func makeBlob() -> Animal {
@@ -924,6 +1063,6 @@ let outputDirectory = CommandLine.arguments.count > 1
     ? CommandLine.arguments[1]
     : "Resources/animals"
 
-for animal in [makeCat(), makeDog(), makeBunny(), makeBat(), makeBlob()] {
+for animal in [makeCat(), makeDog(), makeBunny(), makeBat(), makeBlob(), makeCapybara()] {
     render(animal, into: outputDirectory)
 }

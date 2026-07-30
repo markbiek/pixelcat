@@ -1,0 +1,9 @@
+{
+  "defaultState": "idle",
+  "decideIntervalSeconds": [8, 20],
+  "states": {
+    "idle":  { "row": 0, "frames": 4, "fps": 4, "weight": 55 },
+    "sleep": { "row": 1, "frames": 2, "fps": 1, "weight": 25 },
+    "chew":  { "row": 2, "frames": 4, "fps": 5, "weight": 20 }
+  }
+}

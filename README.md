@@ -138,7 +138,8 @@ agent that runs it nightly at 2:30 AM — in time for the 4 AM drain.
 
 Each animal is a pair of files in `Resources/animals`: a sprite sheet
 `<name>.png` and a manifest `<name>.json`. The bundled animals are `cat`,
-`dog`, `bunny`, `bat`, and `blob`. Here is `Resources/animals/cat.json`:
+`dog`, `bunny`, `bat`, `blob`, and `capybara`. Here is
+`Resources/animals/cat.json`:
 
     {
       "defaultState": "idle",
