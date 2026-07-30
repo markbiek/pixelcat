@@ -153,7 +153,10 @@ final class SpeechController {
         }
     }
 
+    /// The cat's own remarks are the lowest-priority speech: never replace
+    /// a bubble someone might still be reading — or about to click.
     private func speakFromPool() {
+        guard !bubble.isShowingBubble else { return }
         let phrase = PhraseBook.pick(
             from: store.loadPool(),
             state: currentState(),
@@ -286,7 +289,9 @@ final class SpeechController {
         // Record even an empty drain: the window was consumed, and there is
         // no need to re-stat the backlog until tomorrow.
         LearningStore.saveLastActivation(Date())
-        guard !learned.isEmpty else { return false }
+        // The phrases are learned either way; the announcement is skippable
+        // whimsy and must not clobber a bubble already on screen.
+        guard !learned.isEmpty, !bubble.isShowingBubble else { return false }
         speak(learned.count == 1
             ? "I learned a new thing!"
             : "I learned \(learned.count) new things!")

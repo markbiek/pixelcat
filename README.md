@@ -102,6 +102,10 @@ bubbles stick around longer than regular ones. Bubbles without a command
 (including all of the cat's own chatter) ignore clicks entirely, so they
 never get in the way of windows beneath them.
 
+`say` messages always display, replacing whatever bubble is up. The cat's
+own chatter is politer: it stays quiet rather than replace a bubble still
+on screen.
+
 Anything that can write a file can teach the cat. A nightly cron feeding
 `learn` from an LLM, a script, or your own typing all work the same way.
 

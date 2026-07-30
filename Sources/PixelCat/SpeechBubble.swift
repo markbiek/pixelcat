@@ -25,6 +25,10 @@ final class SpeechBubbleWindow: NSWindow {
         contentView = bubbleView
     }
 
+    /// Whether a bubble is currently on screen. Callers use this to decide
+    /// if a new message may replace what the viewer is still reading.
+    var isShowingBubble: Bool { isVisible }
+
     /// Sizes to the text, positions centered above the parent, and attaches
     /// as a child window so dragging the cat drags the bubble. A bubble with
     /// an onClick action accepts clicks; without one it stays click-through
