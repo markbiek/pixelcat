@@ -4,13 +4,13 @@ A pixel-art cat that lives on your macOS desktop. It floats above your windows,
 animates, picks its own moods, and can be dragged anywhere. It runs from the
 menu bar with no Dock icon.
 
-<img width="290" height="140" alt="image" src="https://github.com/user-attachments/assets/5590507f-903c-4e49-8872-c7173ac71499" />
+<img width="420" height="140" alt="cat states" src="docs/images/cat-states.png" />
 
-<img width="440" height="140" alt="image" src="https://github.com/user-attachments/assets/237b8b43-151d-46a5-9701-0b84c905372a" />
-
-<img width="290" height="140" alt="image" src="https://github.com/user-attachments/assets/9d54af45-d836-48a9-b352-5bfa08e68d17" />
+<img width="420" height="140" alt="dog states" src="docs/images/dog-states.png" />
 
 <img width="420" height="140" alt="bunny states" src="docs/images/bunny-states.png" />
+
+<img width="420" height="140" alt="bat states" src="docs/images/bat-states.png" />
 
 <img width="560" height="140" alt="blob states" src="docs/images/blob-states.png" />
 

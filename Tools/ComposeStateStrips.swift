@@ -17,7 +17,10 @@ let outDir = CommandLine.arguments.count > 1
 // (animal, [(row, frame, stateName)]) — frame picked to show the state's
 // signature look, not just frame 0 (which often matches idle).
 let specs: [(String, [(Int, Int, String)])] = [
+    ("cat", [(0, 0, "idle"), (1, 0, "sleep"), (2, 0, "dance")]),
+    ("dog", [(0, 0, "idle"), (1, 0, "sleep"), (2, 3, "wag")]),
     ("bunny", [(0, 0, "idle"), (1, 0, "sleep"), (2, 3, "hop")]),
+    ("bat", [(0, 0, "fly"), (1, 1, "hang"), (2, 0, "sleep")]),
     ("blob", [(0, 0, "idle"), (1, 0, "sleep"), (2, 2, "melt"), (3, 1, "ripple")]),
     ("capybara", [(0, 0, "idle"), (1, 0, "sleep"), (2, 0, "chew")]),
 ]
