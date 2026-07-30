@@ -1,4 +1,5 @@
 import AppKit
+import PixelCatCore
 
 /// The bubble the animal speaks through: a borderless child window holding a
 /// single view that draws a comic-style bubble with a tail pointing down at
@@ -29,29 +30,27 @@ final class SpeechBubbleWindow: NSWindow {
     /// if a new message may replace what the viewer is still reading.
     var isShowingBubble: Bool { isVisible }
 
-    /// Sizes to the text, positions centered above the parent, and attaches
-    /// as a child window so dragging the cat drags the bubble. A bubble with
-    /// an onClick action accepts clicks; without one it stays click-through
-    /// so it never steals events from windows underneath.
+    /// Sizes to the text, places itself above or beside the parent (the
+    /// placer keeps a big bubble from being clamped down over the animal),
+    /// and attaches as a child window so dragging the cat drags the bubble.
+    /// A bubble with an onClick action accepts clicks; without one it stays
+    /// click-through so it never steals events from windows underneath.
     func show(text: String, above parent: NSWindow, onClick: (() -> Void)? = nil) {
         self.onClick = onClick
         ignoresMouseEvents = onClick == nil
         bubbleView.text = text
-        let size = bubbleView.sizeThatFits(text)
-        var origin = NSPoint(
-            x: parent.frame.midX - size.width / 2,
-            y: parent.frame.maxY - 6
+        // Without a screen to clamp to, a boundless rect keeps the
+        // "above, centered" branch of the placer in charge.
+        let visible = (parent.screen ?? NSScreen.main)?.visibleFrame
+            ?? CGRect(x: -1e9, y: -1e9, width: 2e9, height: 2e9)
+        let placement = BubblePlacer.place(
+            textSize: bubbleView.textBlockSize(for: text),
+            tailLength: SpeechBubbleView.tailHeight,
+            animal: parent.frame,
+            screen: visible
         )
-        // A cat dragged to a screen edge would otherwise push the bubble
-        // partway off-screen; clamp to the parent's own screen.
-        if let visible = (parent.screen ?? NSScreen.main)?.visibleFrame {
-            origin.x = min(max(origin.x, visible.minX), visible.maxX - size.width)
-            origin.y = min(max(origin.y, visible.minY), visible.maxY - size.height)
-        }
-        setFrame(
-            NSRect(x: origin.x, y: origin.y, width: size.width, height: size.height),
-            display: true
-        )
+        bubbleView.tail = placement.tail
+        setFrame(placement.frame, display: true)
         if parent.childWindows?.contains(self) != true {
             parent.addChildWindow(self, ordered: .above)
         }
@@ -80,14 +79,21 @@ final class SpeechBubbleView: NSView {
         didSet { needsDisplay = true }
     }
 
+    /// Which edge the tail sticks out of; the window sets it from the
+    /// placement so the tail always points at the animal.
+    var tail: BubbleTail = .bottom {
+        didSet { needsDisplay = true }
+    }
+
     // The app is a background (menu bar) app, so the bubble is never in an
     // active application; without this the first click is swallowed as an
     // activation click and never reaches mouseDown.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
+    static let tailHeight: CGFloat = 8
+
     private static let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold)
     private static let padding: CGFloat = 8
-    private static let tailHeight: CGFloat = 8
     private static let maxTextWidth: CGFloat = 200
     private static let borderWidth: CGFloat = 2
     private static let cornerRadius: CGFloat = 4
@@ -99,7 +105,9 @@ final class SpeechBubbleView: NSView {
         .foregroundColor: NSColor.black,
     ]
 
-    func sizeThatFits(_ text: String) -> NSSize {
+    /// The bubble body needed for the text — padding included, tail
+    /// excluded. The placer adds the tail on whichever edge it picks.
+    func textBlockSize(for text: String) -> NSSize {
         let measured = (text as NSString).boundingRect(
             with: NSSize(width: Self.maxTextWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin],
@@ -107,17 +115,64 @@ final class SpeechBubbleView: NSView {
         )
         return NSSize(
             width: ceil(measured.width) + Self.padding * 2 + 4,
-            height: ceil(measured.height) + Self.padding * 2 + Self.tailHeight + 2
+            height: ceil(measured.height) + Self.padding * 2 + 2
         )
     }
 
+    private var bodyRect: NSRect {
+        switch tail {
+        case .bottom:
+            NSRect(
+                x: Self.borderInset,
+                y: Self.tailHeight,
+                width: bounds.width - Self.borderInset * 2,
+                height: bounds.height - Self.tailHeight - Self.borderInset
+            )
+        case .left:
+            NSRect(
+                x: Self.tailHeight,
+                y: Self.borderInset,
+                width: bounds.width - Self.tailHeight - Self.borderInset,
+                height: bounds.height - Self.borderInset * 2
+            )
+        case .right:
+            NSRect(
+                x: Self.borderInset,
+                y: Self.borderInset,
+                width: bounds.width - Self.tailHeight - Self.borderInset,
+                height: bounds.height - Self.borderInset * 2
+            )
+        }
+    }
+
+    /// The tail triangle's three corners: two on the body edge, tip
+    /// sticking out toward the animal.
+    private var tailPoints: (base1: NSPoint, tip: NSPoint, base2: NSPoint) {
+        let body = bodyRect
+        switch tail {
+        case .bottom:
+            return (
+                NSPoint(x: body.midX - Self.tailHalfWidth, y: body.minY + Self.tailTipXOffset),
+                NSPoint(x: body.midX - Self.tailTipXOffset, y: 0),
+                NSPoint(x: body.midX + Self.tailHalfWidth, y: body.minY + Self.tailTipXOffset)
+            )
+        case .left:
+            return (
+                NSPoint(x: body.minX + Self.tailTipXOffset, y: body.midY - Self.tailHalfWidth),
+                NSPoint(x: 0, y: body.midY - Self.tailTipXOffset),
+                NSPoint(x: body.minX + Self.tailTipXOffset, y: body.midY + Self.tailHalfWidth)
+            )
+        case .right:
+            return (
+                NSPoint(x: body.maxX - Self.tailTipXOffset, y: body.midY - Self.tailHalfWidth),
+                NSPoint(x: bounds.maxX, y: body.midY - Self.tailTipXOffset),
+                NSPoint(x: body.maxX - Self.tailTipXOffset, y: body.midY + Self.tailHalfWidth)
+            )
+        }
+    }
+
     override func draw(_ dirtyRect: NSRect) {
-        let body = NSRect(
-            x: Self.borderInset,
-            y: Self.tailHeight,
-            width: bounds.width - Self.borderInset * 2,
-            height: bounds.height - Self.tailHeight - Self.borderInset
-        )
+        let body = bodyRect
         let bubble = NSBezierPath(roundedRect: body, xRadius: Self.cornerRadius, yRadius: Self.cornerRadius)
         bubble.lineWidth = Self.borderWidth
 
@@ -128,22 +183,20 @@ final class SpeechBubbleView: NSView {
 
         // Tail: filled after the border so it visually merges with the body,
         // then just its two outer edges are stroked.
-        let tail = NSBezierPath()
-        let tailLeft = NSPoint(x: body.midX - Self.tailHalfWidth, y: body.minY + Self.tailTipXOffset)
-        let tailTip = NSPoint(x: body.midX - Self.tailTipXOffset, y: 0)
-        let tailRight = NSPoint(x: body.midX + Self.tailHalfWidth, y: body.minY + Self.tailTipXOffset)
-        tail.move(to: tailLeft)
-        tail.line(to: tailTip)
-        tail.line(to: tailRight)
-        tail.close()
+        let points = tailPoints
+        let tailPath = NSBezierPath()
+        tailPath.move(to: points.base1)
+        tailPath.line(to: points.tip)
+        tailPath.line(to: points.base2)
+        tailPath.close()
         NSColor.white.setFill()
-        tail.fill()
+        tailPath.fill()
 
         let outline = NSBezierPath()
         outline.lineWidth = Self.borderWidth
-        outline.move(to: tailLeft)
-        outline.line(to: tailTip)
-        outline.line(to: tailRight)
+        outline.move(to: points.base1)
+        outline.line(to: points.tip)
+        outline.line(to: points.base2)
         NSColor.black.setStroke()
         outline.stroke()
 
