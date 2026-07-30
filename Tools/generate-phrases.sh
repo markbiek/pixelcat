@@ -24,7 +24,7 @@ PLIST_PATH="$HOME/Library/LaunchAgents/$PLIST_LABEL.plist"
 LOG_PATH="$HOME/Library/Logs/pixelcat-phrases.log"
 
 # Keep in sync with Resources/animals/*.json state names.
-TAGS="idle, sleep, dance, wag, fly, hang"
+TAGS="idle, sleep, dance, wag, fly, hang, hop"
 
 install_agent() {
     local script_path

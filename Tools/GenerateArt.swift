@@ -81,6 +81,41 @@ let baseDog = [
     "........................",
 ]
 
+// The bunny is the cat's silhouette taken taller: long upright ears with
+// pink inners, and a face that sits two rows lower in the cell than the
+// cat's so the hop can spring two pixels up without clipping the ear tips.
+// The fluffy ball tail is a rounded bulge flush against the body's lower
+// right: the body outline opens for the ball's whole height so the fur is
+// one unbroken mass — any dark seam or white neck between two white shapes
+// reads as a gap or a stalk, not a tail. It stays below the sleep mark's
+// corner, and the hop's peak keeps it inside the cell.
+let baseBunny = [
+    "........................",
+    "........................",
+    "........................",
+    ".....##........##.......",
+    "....#pp#......#pp#......",
+    "....#pp#......#pp#......",
+    "....#pp#......#pp#......",
+    "....#pp#......#pp#......",
+    "....#pp#......#pp#......",
+    "....#pp########pp#......",
+    "....#oooooooooooo#......",
+    "....#ooeeooooeeoo#......",
+    "....#ooeeooooeeoo#......",
+    "....#ooooonnooooo####...",
+    "....#oooommmmoooooooo#..",
+    "....#ooooooooooooooooo#.",
+    "....#ooooooooooooooooo#.",
+    "....#ooooooooooooooooo#.",
+    "....#oooooooooooooooo#..",
+    ".....#oooooooooo#####...",
+    "......##########........",
+    "........................",
+    "........................",
+    "........................",
+]
+
 // The bat's body, drawn without wings so the flap can be layered over it. Grey
 // rather than white: on a dark menu bar a black bat is a hole, and the outline
 // is doing no work there.
@@ -528,6 +563,43 @@ func makeDog() -> Animal {
     return Animal(name: "dog", rows: [idleFrames, sleepFrames, wagFrames])
 }
 
+// MARK: - Bunny
+
+func makeBunny() -> Animal {
+    let base = makeGrid(baseBunny)
+    func lidded(_ grid: Grid) -> Grid {
+        closedEyes(grid, row: 12, columns: [7, 8, 13, 14])
+    }
+
+    // Row 0: idle. The same bob and blink as the cat.
+    let idleFrames: [Grid] = [
+        base,
+        shift(base, dx: 0, dy: 1),
+        lidded(shift(base, dx: 0, dy: 1)),
+        base,
+    ]
+
+    // Row 1: sleep. Settled one row down, eyes shut, mark rising.
+    let sleeping = lidded(shift(base, dx: 0, dy: 1))
+    let sleepFrames: [Grid] = [
+        addSleepMark(sleeping, atHeight: 4),
+        addSleepMark(sleeping, atHeight: 1),
+    ]
+
+    // Row 2: hop. Crouch, spring two pixels, land. The peak is why the
+    // base art sits low in its cell: the ear tips need the headroom.
+    let hopFrames: [Grid] = [
+        base,
+        shift(base, dx: 0, dy: 1),
+        shift(base, dx: 0, dy: -1),
+        shift(base, dx: 0, dy: -2),
+        shift(base, dx: 0, dy: -1),
+        base,
+    ]
+
+    return Animal(name: "bunny", rows: [idleFrames, sleepFrames, hopFrames])
+}
+
 // MARK: - Bat
 
 func makeBat() -> Animal {
@@ -633,6 +705,6 @@ let outputDirectory = CommandLine.arguments.count > 1
     ? CommandLine.arguments[1]
     : "Resources/animals"
 
-for animal in [makeCat(), makeDog(), makeBat()] {
+for animal in [makeCat(), makeDog(), makeBunny(), makeBat()] {
     render(animal, into: outputDirectory)
 }
