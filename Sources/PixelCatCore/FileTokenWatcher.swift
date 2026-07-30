@@ -1,6 +1,7 @@
 import Foundation
 
-/// Watches a file for a one-word token drawn from a fixed vocabulary.
+/// Watches a file for a one-word token from a fixed vocabulary, or (via the
+/// contents init) free text.
 ///
 /// Runs two watches side by side:
 /// - a **directory** watch (binds to the parent directory, not the file),
@@ -21,7 +22,10 @@ import Foundation
 public final class FileTokenWatcher {
     private let fileURL: URL
     private let directoryURL: URL
-    private let validTokens: Set<String>
+    /// Turns raw file contents into the payload to report, or nil to stay
+    /// silent. The token init parses and validates against a vocabulary;
+    /// the contents init passes everything through except blank documents.
+    private let extract: (String) -> String?
     private let onToken: @MainActor (String) -> Void
     private let queue: DispatchQueue
 
@@ -40,15 +44,49 @@ public final class FileTokenWatcher {
     /// sibling's churn.
     private var watchedInode: ino_t = 0
 
-    public init(
+    public convenience init(
         fileURL: URL,
         validTokens: Set<String>,
         onToken: @escaping @MainActor (String) -> Void
     ) {
+        let path = fileURL.path
+        self.init(fileURL: fileURL, onPayload: onToken) { contents in
+            if let token = FileTokenWatcher.parse(contents, validTokens: validTokens) {
+                return token
+            }
+            let trimmed = contents.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                FileHandle.standardError.write(Data(
+                    "pixelcat: ignoring unrecognized signal in \(path)\n".utf8
+                ))
+            }
+            return nil
+        }
+    }
+
+    /// Watches a file carrying free text — the whole document, not a token
+    /// from a vocabulary. Blank contents are silently ignored, which is what
+    /// makes consume-after-read (deleting the file) safe: the app's own
+    /// delete never echoes back as a phantom signal.
+    public convenience init(
+        fileURL: URL,
+        onContents: @escaping @MainActor (String) -> Void
+    ) {
+        self.init(fileURL: fileURL, onPayload: onContents) { contents in
+            let trimmed = contents.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : contents
+        }
+    }
+
+    private init(
+        fileURL: URL,
+        onPayload: @escaping @MainActor (String) -> Void,
+        extract: @escaping (String) -> String?
+    ) {
         self.fileURL = fileURL
         self.directoryURL = fileURL.deletingLastPathComponent()
-        self.validTokens = validTokens
-        self.onToken = onToken
+        self.extract = extract
+        self.onToken = onPayload
         // Named after the watched file so two watchers (state, animal) show
         // up as distinct queues in crash logs and Instruments traces.
         self.queue = DispatchQueue(label: "com.markbiek.pixelcat.signal.\(fileURL.lastPathComponent)")
@@ -245,15 +283,10 @@ public final class FileTokenWatcher {
         guard let contents = try? String(contentsOf: fileURL, encoding: .utf8) else {
             return
         }
-        guard let token = FileTokenWatcher.parse(contents, validTokens: validTokens) else {
-            FileHandle.standardError.write(Data(
-                "pixelcat: ignoring unrecognized signal in \(fileURL.path)\n".utf8
-            ))
-            return
-        }
+        guard let payload = extract(contents) else { return }
         let callback = onToken
         Task { @MainActor in
-            callback(token)
+            callback(payload)
         }
     }
 }

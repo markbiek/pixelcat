@@ -126,6 +126,32 @@ private let valid: Set<String> = ["cat", "dog", "bat"]
         try await Task.sleep(for: .milliseconds(400))
         #expect(log.tokens == ["dog", "bat"], "a restarted watcher must not double-arm and double-deliver")
     }
+
+    /// The say/learn files carry free text, so the contents-based init must
+    /// deliver the whole document — including lines past the first — where
+    /// the token init deliberately reads only line one.
+    @Test @MainActor func contentsInitDeliversTheWholeDocument() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("pixelcat-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let watched = directory.appendingPathComponent("learn", isDirectory: false)
+
+        let log = TokenLog()
+        let watcher = FileTokenWatcher(fileURL: watched) { contents in
+            log.tokens.append(contents)
+        }
+        try watcher.start()
+        defer { watcher.stop() }
+
+        try "line one\nsleep: line two\n".write(to: watched, atomically: false, encoding: .utf8)
+
+        await waitUntil { log.tokens.count == 1 }
+
+        #expect(log.tokens.first?.contains("line one") == true)
+        #expect(log.tokens.first?.contains("sleep: line two") == true)
+    }
 }
 
 /// Collects tokens on the main actor, matching the watcher's `@MainActor`
