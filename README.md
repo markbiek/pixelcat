@@ -93,6 +93,11 @@ announces what it learned. Both files are consumed after reading.
 Anything that can write a file can teach the cat. A nightly cron feeding
 `learn` from an LLM, a script, or your own typing all work the same way.
 
+`Tools/generate-phrases.sh` is one such generator: it asks an LLM
+(`claude -p`, falling back to ollama) for a few new phrases and appends
+them to `learn`. Run it by hand to test, or `--install` to load a launchd
+agent that runs it nightly at 2:30 AM — in time for the 4 AM drain.
+
 ## Changing the art
 
 `Resources/animals.json` holds the settings every animal shares:
