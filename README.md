@@ -16,23 +16,34 @@ menu bar with no Dock icon.
 
 <img width="420" height="140" alt="capybara states" src="docs/images/capybara-states.png" />
 
-## Requirements
+## Download
 
-macOS 14 or later, and the Xcode command line tools:
+Grab `PixelCat.zip` from the
+[latest release](https://github.com/markbiek/pixelcat/releases/latest),
+unzip it, and move `PixelCat.app` to Applications. It needs macOS 14 or
+later, runs on Apple Silicon and Intel, and lives in the menu bar — no
+Dock icon. Add it to Login Items to start it automatically.
 
-    xcode-select --install
+The app is not notarized with Apple, so macOS blocks the first launch of
+a downloaded copy. Approve it once under **System Settings › Privacy &
+Security** ("Open Anyway"), or clear the quarantine flag instead:
+
+    xattr -dr com.apple.quarantine /Applications/PixelCat.app
+
+If you'd rather not do either, build it yourself — Gatekeeper doesn't
+quarantine what you compile locally.
 
 ## Build and run
+
+You'll need macOS 14 or later and the Xcode command line tools
+(`xcode-select --install`):
 
     git clone <this repo> && cd pixelcat
     make run
 
 `make` builds `PixelCat.app` in the repo directory. Move it to `/Applications`
-if you want to keep it, and add it to Login Items to start it automatically.
-
-This app is not signed with an Apple Developer certificate. Building it yourself
-avoids Gatekeeper entirely — quarantine is only applied to things downloaded
-from the internet, not to what you compile locally.
+if you want to keep it. `make release` builds the downloadable zip: a
+universal (Apple Silicon + Intel) binary, ad-hoc signed.
 
 ## Controls
 
