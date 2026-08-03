@@ -126,7 +126,9 @@ Anything that can write a file can teach the cat. A nightly cron feeding
 `Tools/generate-phrases.sh` is one such generator: it asks an LLM
 (`claude -p`, falling back to ollama) for a few new phrases and appends
 them to `learn`. Run it by hand to test, or `--install` to load a launchd
-agent that runs it nightly at 2:30 AM — in time for the 4 AM drain.
+agent that runs it nightly at 2:30 AM — in time for the 4 AM drain. With
+neither tool installed it quietly skips the night; nothing in the app
+itself needs them.
 
 ## Changing the art
 
