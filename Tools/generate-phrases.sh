@@ -73,17 +73,34 @@ $known
 PROMPT
 }
 
+# `claude -p` prints its failures to stdout, not stderr, so a dead network
+# reads as five perfectly-formatted phrases. Anchored to line start: a real
+# phrase that merely mentions an error still gets through.
+ERROR_PATTERN='^(api )?error|^unable to |^usage:|^\{|^rate limit|^not logged in|^please run /login'
+
 # Drop bullets/numbering/quotes the model was told not to add anyway, then
 # anything that still looks like commentary rather than a phrase.
 sanitize() {
     sed -e 's/\r$//' \
-        -e 's/^[-*•]\s*//' \
-        -e 's/^[0-9]\{1,2\}[.)]\s*//' \
+        -e 's/^[-*•][[:space:]]*//' \
+        -e 's/^[0-9]\{1,2\}[.)][[:space:]]*//' \
         -e 's/^"\(.*\)"$/\1/' \
         -e "s/^'\(.*\)'$/\1/" \
     | grep -v -i 'phrase' \
+    | grep -v -E -i "$ERROR_PATTERN" \
     | awk 'length($0) > 0 && length($0) <= 80' \
     | head -8
+}
+
+# Runs a generator and returns its phrases, or fails. Kept separate from the
+# pipe into sanitize so a non-zero exit from the tool is still visible -
+# in a pipeline it would be masked by head's success.
+run_generator() {
+    local raw rc
+    raw="$("$@" 2>/dev/null)"
+    rc=$?
+    [ "$rc" -eq 0 ] || return 1
+    printf '%s\n' "$raw" | sanitize
 }
 
 generate() {
@@ -91,8 +108,8 @@ generate() {
     prompt="$(build_prompt)"
 
     if command -v claude >/dev/null 2>&1; then
-        output="$(claude --model haiku -p "$prompt" 2>/dev/null | sanitize)"
-        if [ -n "$output" ]; then
+        if output="$(run_generator claude --model haiku -p "$prompt")" \
+            && [ -n "$output" ]; then
             echo "$output"
             return 0
         fi
@@ -100,8 +117,8 @@ generate() {
     fi
 
     if command -v ollama >/dev/null 2>&1; then
-        output="$(ollama run llama3.2 "$prompt" 2>/dev/null | sanitize)"
-        if [ -n "$output" ]; then
+        if output="$(run_generator ollama run llama3.2 "$prompt")" \
+            && [ -n "$output" ]; then
             echo "$output"
             return 0
         fi
